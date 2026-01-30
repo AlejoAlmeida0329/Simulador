@@ -38,6 +38,9 @@ export function CompanyDataModal({ onSubmit, isOpen }: CompanyDataModalProps) {
     if (!formData.phone.trim()) {
       newErrors.phone = 'El teléfono es requerido'
     }
+    if (!formData.nit || !formData.nit.trim()) {
+      newErrors.nit = 'El NIT es requerido'
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -135,10 +138,10 @@ export function CompanyDataModal({ onSubmit, isOpen }: CompanyDataModalProps) {
               )}
             </div>
 
-            {/* NIT (opcional) */}
+            {/* NIT */}
             <div>
               <label htmlFor="nit" className="block text-sm font-medium text-gray-700 mb-2">
-                NIT (Opcional)
+                NIT *
               </label>
               <input
                 type="text"
@@ -148,22 +151,9 @@ export function CompanyDataModal({ onSubmit, isOpen }: CompanyDataModalProps) {
                 className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tikin-red focus:border-transparent transition-all"
                 placeholder="Ej: 900123456-7"
               />
-            </div>
-
-            {/* Número de empleados (opcional) */}
-            <div>
-              <label htmlFor="employeeCount" className="block text-sm font-medium text-gray-700 mb-2">
-                Número de Empleados (Opcional)
-              </label>
-              <input
-                type="number"
-                id="employeeCount"
-                value={formData.employeeCount || ''}
-                onChange={(e) => setFormData({ ...formData, employeeCount: e.target.value ? parseInt(e.target.value) : undefined })}
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tikin-red focus:border-transparent transition-all"
-                placeholder="Ej: 50"
-                min="1"
-              />
+              {errors.nit && (
+                <p className="text-xs text-red-600 mt-1">{errors.nit}</p>
+              )}
             </div>
 
             {/* Botón de submit */}

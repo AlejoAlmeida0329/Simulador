@@ -19,9 +19,15 @@ export function EmployeeForm({ onAdd, onAddBulk }: EmployeeFormProps) {
 
     const salaryNum = parseFloat(salary)
     const countNum = parseInt(count)
+    const MIN_SALARY = 2450000
 
     if (isNaN(salaryNum) || salaryNum < 0) {
       setError('Por favor ingresa un salario válido')
+      return
+    }
+
+    if (salaryNum < MIN_SALARY) {
+      setError(`El salario mínimo permitido es ${formatCOP(MIN_SALARY)}`)
       return
     }
 
@@ -80,14 +86,19 @@ export function EmployeeForm({ onAdd, onAddBulk }: EmployeeFormProps) {
             value={salary}
             onChange={(e) => setSalary(e.target.value)}
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-tikin-red focus:border-transparent transition-all"
-            placeholder="Ej: 1000000"
+            placeholder="Ej: 2500000"
             required
-            min="0"
+            min="2450000"
             step="1"
           />
           {salary && !isNaN(parseFloat(salary)) && (
             <p className="text-sm text-gray-600 mt-1.5">
               {formatCOP(parseFloat(salary))} por empleado
+            </p>
+          )}
+          {!salary && (
+            <p className="text-xs text-gray-500 mt-1.5">
+              Salario mínimo: {formatCOP(2450000)}
             </p>
           )}
         </div>

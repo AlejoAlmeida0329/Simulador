@@ -15,7 +15,7 @@ export function ScenarioCard({ scenario, isTraditional = false, arlRiskLevel }: 
   const headerBorder = isTraditional ? 'border-gray-200' : 'border-red-100'
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm h-full flex flex-col">
       <div className={`bg-gray-50 px-6 py-4 border-b ${headerBorder}`}>
         <h3 className={`text-lg font-semibold ${accentColor}`}>
           {scenario.label}
@@ -46,42 +46,44 @@ export function ScenarioCard({ scenario, isTraditional = false, arlRiskLevel }: 
       </div>
 
       {/* Parafiscales breakdown */}
-      <div className="border-t border-gray-200 px-6 py-4 space-y-2">
+      <div className="border-t border-gray-200 px-6 py-4 flex-1 flex flex-col">
         <h4 className="text-sm font-semibold text-gray-900 mb-3">
           Parafiscales Mensuales:
         </h4>
 
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">Salud (8.5%):</span>
-          <span className="text-gray-900">{formatCOP(scenario.parafiscales.health)}</span>
+        <div className="space-y-2">
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">Salud (8.5%):</span>
+            <span className="text-gray-900">{formatCOP(scenario.parafiscales.health)}</span>
+          </div>
+
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">Pensión (12%):</span>
+            <span className="text-gray-900">{formatCOP(scenario.parafiscales.pension)}</span>
+          </div>
+
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">ARL ({formatPercentage(ARL_RATES[arlRiskLevel] * 100)}):</span>
+            <span className="text-gray-900">{formatCOP(scenario.parafiscales.arl)}</span>
+          </div>
+
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">SENA (2%):</span>
+            <span className="text-gray-900">{formatCOP(scenario.parafiscales.sena)}</span>
+          </div>
+
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">ICBF (3%):</span>
+            <span className="text-gray-900">{formatCOP(scenario.parafiscales.icbf)}</span>
+          </div>
+
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-600">Caja Compensación (4%):</span>
+            <span className="text-gray-900">{formatCOP(scenario.parafiscales.caja)}</span>
+          </div>
         </div>
 
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">Pensión (12%):</span>
-          <span className="text-gray-900">{formatCOP(scenario.parafiscales.pension)}</span>
-        </div>
-
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">ARL ({formatPercentage(ARL_RATES[arlRiskLevel] * 100)}):</span>
-          <span className="text-gray-900">{formatCOP(scenario.parafiscales.arl)}</span>
-        </div>
-
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">SENA (2%):</span>
-          <span className="text-gray-900">{formatCOP(scenario.parafiscales.sena)}</span>
-        </div>
-
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">ICBF (3%):</span>
-          <span className="text-gray-900">{formatCOP(scenario.parafiscales.icbf)}</span>
-        </div>
-
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-600">Caja Compensación (4%):</span>
-          <span className="text-gray-900">{formatCOP(scenario.parafiscales.caja)}</span>
-        </div>
-
-        <div className="flex justify-between pt-3 mt-2 border-t border-gray-200">
+        <div className="flex justify-between pt-3 mt-auto border-t border-gray-200">
           <span className="font-semibold text-gray-900">Total:</span>
           <span className={`text-lg font-semibold ${accentColor}`}>{formatCOP(scenario.parafiscales.total)}</span>
         </div>
