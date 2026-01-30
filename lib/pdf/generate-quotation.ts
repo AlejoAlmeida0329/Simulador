@@ -1,7 +1,7 @@
 import { CompanyData, TikinCommission } from '@/types/company'
 import { SavingsResult } from '@/types/scenarios'
 import { formatCOP, formatPercentage } from '@/lib/formatters'
-import { ARLRiskLevel } from '@/lib/constants/parafiscales'
+import { ARLRiskLevel, ARL_RATES } from '@/lib/constants/parafiscales'
 import { saveQuotation } from '@/lib/supabase/quotations'
 import { QuotationInsert } from '@/types/quotation'
 
@@ -33,197 +33,325 @@ export async function generateQuotationPDF(data: QuotationData) {
   const netMonthlySavings = data.savingsData.monthlySavings - data.tikinCommission.totalCost
   const netAnnualSavings = netMonthlySavings * 12
 
-  const levelLabels: Record<number, string> = {
-    1: 'Nivel 1 (4%)',
-    2: 'Nivel 2 (3.5%)',
-    3: 'Nivel 3 (2.5%)',
-    4: 'Nivel 4 (1.8%)',
-  }
+  // Número de propuesta único
+  const proposalNumber = `${data.companyData.companyName.substring(0, 3).toUpperCase()}-${Date.now().toString().substring(8)}`
+  const validUntil = new Date()
+  validUntil.setMonth(validUntil.getMonth() + 1)
+  const validUntilDate = validUntil.toLocaleDateString('es-CO', { year: 'numeric', month: '2-digit', day: '2-digit' })
 
   const docDefinition: any = {
     pageSize: 'A4',
-    pageMargins: [0, 80, 0, 60],
+    pageMargins: [0, 0, 0, 0],
 
-    header: {
-      margin: [0, 0, 0, 0],
-      stack: [
-        // Barra roja superior
-        {
-          canvas: [
-            {
-              type: 'rect',
-              x: 0,
-              y: 0,
-              w: 595,
-              h: 8,
-              color: '#FF3333'
-            }
-          ]
-        },
-        // Logo y título
-        {
-          margin: [40, 15, 40, 0],
-          columns: [
-            {
-              width: '*',
-              stack: [
-                { text: 'TIKIN', fontSize: 28, bold: true, color: '#FF3333', margin: [0, 0, 0, 2] },
-                {
-                  canvas: [
-                    {
-                      type: 'line',
-                      x1: 0,
-                      y1: 0,
-                      x2: 60,
-                      y2: 0,
-                      lineWidth: 2,
-                      lineColor: '#FF3333'
-                    }
-                  ]
-                }
-              ]
-            },
-            {
-              width: 'auto',
-              alignment: 'right',
-              stack: [
-                { text: 'COTIZACIÓN', fontSize: 16, bold: true, color: '#1F2937' },
-                { text: today, fontSize: 9, color: '#6B7280', margin: [0, 2, 0, 0] }
-              ]
-            }
-          ]
-        }
-      ]
-    },
-
-    footer: (currentPage: number, pageCount: number) => {
-      return {
+    content: [
+      // ============ PORTADA ============
+      {
         stack: [
-          // Línea divisoria
+          // Fondo rojo completo
           {
-            margin: [40, 0, 40, 10],
             canvas: [
               {
-                type: 'line',
-                x1: 0,
-                y1: 0,
-                x2: 515,
-                y2: 0,
-                lineWidth: 0.5,
-                lineColor: '#E5E7EB'
+                type: 'rect',
+                x: 0,
+                y: 0,
+                w: 595,
+                h: 842,
+                color: '#E63946'
               }
-            ]
+            ],
+            absolutePosition: { x: 0, y: 0 }
           },
-          // Footer content
+
+          // Logo Tikin arriba izquierda
           {
-            margin: [40, 0, 40, 15],
+            text: 'Tikin.',
+            fontSize: 24,
+            bold: true,
+            color: '#FFFFFF',
+            margin: [40, 40, 0, 0]
+          },
+
+          // Título principal centrado
+          {
+            text: 'CALCULADORA DE AHORROS EN\nPARAFISCALES',
+            fontSize: 32,
+            bold: true,
+            color: '#FFFFFF',
+            alignment: 'center',
+            margin: [40, 280, 40, 0],
+            lineHeight: 1.3
+          },
+
+          // Nombre de la empresa
+          {
+            text: data.companyData.companyName,
+            fontSize: 18,
+            color: '#FFFFFF',
+            alignment: 'center',
+            margin: [40, 30, 40, 0]
+          },
+
+          // Información del footer de portada
+          {
             columns: [
               {
                 width: '*',
                 stack: [
-                  { text: 'www.tikin.co', fontSize: 9, color: '#FF3333', bold: true },
-                  { text: 'contacto@tikin.co', fontSize: 8, color: '#6B7280' }
+                  { text: 'Propuesta No.', fontSize: 9, color: 'rgba(255,255,255,0.8)' },
+                  { text: proposalNumber, fontSize: 11, bold: true, color: '#FFFFFF', margin: [0, 2, 0, 10] },
+                  { text: 'Última modificación', fontSize: 9, color: 'rgba(255,255,255,0.8)' },
+                  { text: today, fontSize: 10, color: '#FFFFFF', margin: [0, 2, 0, 10] },
+                  { text: 'Oferta válida hasta', fontSize: 9, color: 'rgba(255,255,255,0.8)' },
+                  { text: validUntilDate, fontSize: 10, color: '#FFFFFF', margin: [0, 2, 0, 0] }
                 ]
               },
               {
+                width: '*',
+                stack: [
+                  { text: 'Estado', fontSize: 9, color: 'rgba(255,255,255,0.8)' },
+                  { text: 'Ready', fontSize: 11, bold: true, color: '#FFFFFF', margin: [0, 2, 0, 10] },
+                  { text: 'Ciudad de', fontSize: 9, color: 'rgba(255,255,255,0.8)' },
+                  { text: 'Bogotá, Colombia', fontSize: 10, color: '#FFFFFF', margin: [0, 2, 0, 0] }
+                ]
+              }
+            ],
+            absolutePosition: { x: 40, y: 720 }
+          }
+        ],
+        pageBreak: 'after'
+      },
+
+      // ============ PÁGINA 2: CARTA DE PRESENTACIÓN ============
+      {
+        margin: [40, 40, 40, 40],
+        stack: [
+          // Logo
+          {
+            text: 'Tikin.',
+            fontSize: 20,
+            bold: true,
+            color: '#1F2937',
+            margin: [0, 0, 0, 30]
+          },
+
+          // Información de contacto Tikin (esquina superior derecha)
+          {
+            columns: [
+              { width: '*', text: '' },
+              {
                 width: 'auto',
-                text: `Página ${currentPage} de ${pageCount}`,
-                fontSize: 8,
-                color: '#9CA3AF',
+                stack: [
+                  { text: 'Alejandro Almeida', fontSize: 10, color: '#6B7280' },
+                  { text: 'Growth Manager', fontSize: 9, color: '#9CA3AF' },
+                  { text: 'alejandro@tikin.co', fontSize: 9, color: '#E63946', margin: [0, 2, 0, 0] }
+                ],
                 alignment: 'right'
+              }
+            ],
+            margin: [0, -50, 0, 0]
+          },
+
+          // Título
+          {
+            text: 'Estás a un paso de completarte',
+            fontSize: 22,
+            bold: true,
+            color: '#1F2937',
+            margin: [0, 40, 0, 5]
+          },
+          {
+            text: 'Cotización',
+            fontSize: 14,
+            color: '#6B7280',
+            margin: [0, 0, 0, 5]
+          },
+          {
+            text: 'Calculadora de Ahorros en Parafiscales',
+            fontSize: 16,
+            bold: true,
+            color: '#1F2937',
+            margin: [0, 0, 0, 25]
+          },
+
+          // Carta personalizada
+          {
+            text: [
+              { text: `Hola ${data.companyData.contactName},\n\n`, fontSize: 11, color: '#1F2937', bold: true },
+              { text: `Mi nombre es Alejandro Almeida / Growth Manager de Tikin y es un gusto tener la oportunidad de presentar nuestra propuesta en respuesta a los requerimientos entregados, espero que sea de su agrado.\n\n`, fontSize: 10, color: '#4B5563' },
+              { text: 'Quedas a tu disposición, para cualquier duda o aclaración puedes contactarme vía WhatsApp al número: ', fontSize: 10, color: '#4B5563' },
+              { text: '+57 310 458 2460', fontSize: 10, color: '#E63946', bold: true },
+              { text: ' y responderé a la brevedad posible.', fontSize: 10, color: '#4B5563' }
+            ],
+            margin: [0, 0, 0, 30],
+            lineHeight: 1.5
+          },
+
+          // Firma
+          {
+            columns: [
+              {
+                width: 60,
+                stack: [
+                  {
+                    canvas: [
+                      {
+                        type: 'ellipse',
+                        x: 25,
+                        y: 25,
+                        r1: 25,
+                        r2: 25,
+                        color: '#E5E7EB'
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                width: '*',
+                stack: [
+                  { text: 'Head of Growth', fontSize: 9, color: '#6B7280', margin: [0, 10, 0, 2] },
+                  { text: 'Alejandro Almeida', fontSize: 12, bold: true, color: '#1F2937' }
+                ],
+                margin: [10, 0, 0, 0]
+              }
+            ],
+            margin: [0, 20, 0, 0]
+          },
+
+          // Aviso de privacidad
+          {
+            text: 'AVISO DE PRIVACIDAD: Usted recibe la siguiente oferta comercial por solicitud propia y de esta forma acepta nuestra política para el tratamiento de datos personales, de lo contrario es importante que reporte inmediatamente el incidente al siguiente correo electrónico: info@tikin.co',
+            fontSize: 7,
+            color: '#9CA3AF',
+            margin: [0, 40, 0, 0],
+            lineHeight: 1.3
+          }
+        ],
+        pageBreak: 'after'
+      },
+
+      // ============ PÁGINA 3: BENEFICIOS QUE ENAMORAN ============
+      {
+        margin: [40, 40, 40, 40],
+        stack: [
+          // Logo
+          {
+            text: 'Tikin.',
+            fontSize: 20,
+            bold: true,
+            color: '#1F2937',
+            margin: [0, 0, 0, 20]
+          },
+
+          // Título de sección
+          {
+            text: 'BENEFICIOS QUE ENAMORAN',
+            fontSize: 24,
+            bold: true,
+            color: '#FFFFFF',
+            fillColor: '#1F2937',
+            margin: [-40, 0, -40, 0],
+            padding: [40, 15, 40, 15],
+            alignment: 'center'
+          },
+
+          // Grid de beneficios (3x2)
+          {
+            margin: [0, 30, 0, 0],
+            stack: [
+              // Fila 1
+              {
+                columns: [
+                  {
+                    width: '33%',
+                    stack: [
+                      { text: '🔒', fontSize: 32, alignment: 'center', margin: [0, 0, 0, 10] },
+                      { text: 'Plataforma segura', fontSize: 12, bold: true, color: '#1F2937', alignment: 'center', margin: [0, 0, 0, 5] },
+                      { text: 'Implementamos tecnología de seguridad avanzada para mantener tu cuenta siempre protegida', fontSize: 9, color: '#6B7280', alignment: 'center', lineHeight: 1.4 }
+                    ]
+                  },
+                  {
+                    width: '33%',
+                    stack: [
+                      { text: '⚡', fontSize: 32, alignment: 'center', margin: [0, 0, 0, 10] },
+                      { text: 'Procesos Ágiles', fontSize: 12, bold: true, color: '#1F2937', alignment: 'center', margin: [0, 0, 0, 5] },
+                      { text: 'Olvídate de trámites extensos o innecesarios optimizando tu tiempo', fontSize: 9, color: '#6B7280', alignment: 'center', lineHeight: 1.4 }
+                    ]
+                  },
+                  {
+                    width: '33%',
+                    stack: [
+                      { text: '💡', fontSize: 32, alignment: 'center', margin: [0, 0, 0, 10] },
+                      { text: 'Ahorros inteligentes', fontSize: 12, bold: true, color: '#1F2937', alignment: 'center', margin: [0, 0, 0, 5] },
+                      { text: 'Encuentra ahorros y optimiza tus finanzas mientras mejoras la cultura de tu empresa', fontSize: 9, color: '#6B7280', alignment: 'center', lineHeight: 1.4 }
+                    ]
+                  }
+                ]
+              },
+
+              // Fila 2
+              {
+                columns: [
+                  {
+                    width: '33%',
+                    stack: [
+                      { text: '🎯', fontSize: 32, alignment: 'center', margin: [0, 20, 0, 10] },
+                      { text: 'Soporte personalizado', fontSize: 12, bold: true, color: '#1F2937', alignment: 'center', margin: [0, 0, 0, 5] },
+                      { text: 'Estamos aquí para brindarte soporte personalizado, resolver tus dudas y acompañarte en cada paso del camino', fontSize: 9, color: '#6B7280', alignment: 'center', lineHeight: 1.4 }
+                    ]
+                  },
+                  {
+                    width: '33%',
+                    stack: [
+                      { text: '🔓', fontSize: 32, alignment: 'center', margin: [0, 20, 0, 10] },
+                      { text: 'Sin permanencias', fontSize: 12, bold: true, color: '#1F2937', alignment: 'center', margin: [0, 0, 0, 5] },
+                      { text: 'No tenemos mínimo de permanencia, con nuestros beneficios y facilidades seguro vas a querer quedarte', fontSize: 9, color: '#6B7280', alignment: 'center', lineHeight: 1.4 }
+                    ]
+                  },
+                  {
+                    width: '33%',
+                    stack: [
+                      { text: '📊', fontSize: 32, alignment: 'center', margin: [0, 20, 0, 10] },
+                      { text: 'Pricing transparente', fontSize: 12, bold: true, color: '#1F2937', alignment: 'center', margin: [0, 0, 0, 5] },
+                      { text: 'Soluciones diseñadas a tu medida como las necesitas', fontSize: 9, color: '#6B7280', alignment: 'center', lineHeight: 1.4 }
+                    ]
+                  }
+                ]
               }
             ]
           }
-        ]
-      }
-    },
-
-    content: [
-      // INFORMACIÓN DEL CLIENTE
-      {
-        margin: [40, 0, 40, 0],
-        stack: [
-          {
-            text: 'Información del Cliente',
-            fontSize: 16,
-            bold: true,
-            color: '#1F2937',
-            margin: [0, 0, 0, 3]
-          },
-          {
-            canvas: [
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 100,
-                h: 3,
-                color: '#FF3333'
-              }
-            ],
-            margin: [0, 0, 0, 15]
-          },
-          {
-            table: {
-              widths: ['25%', '*'],
-              body: [
-                [
-                  { text: 'Empresa:', fontSize: 10, color: '#6B7280', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                  { text: data.companyData.companyName, fontSize: 11, bold: true, color: '#FF3333', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
-                ],
-                [
-                  { text: 'Contacto:', fontSize: 10, color: '#6B7280', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                  { text: data.companyData.contactName, fontSize: 10, color: '#1F2937', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
-                ],
-                [
-                  { text: 'Email:', fontSize: 10, color: '#6B7280', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                  { text: data.companyData.email, fontSize: 10, color: '#1F2937', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
-                ],
-                [
-                  { text: 'Teléfono:', fontSize: 10, color: '#6B7280', border: [false, false, false, data.companyData.nit ? true : false], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                  { text: data.companyData.phone, fontSize: 10, color: '#1F2937', border: [false, false, false, data.companyData.nit ? true : false], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
-                ],
-                ...(data.companyData.nit ? [[
-                  { text: 'NIT:', fontSize: 10, color: '#6B7280', border: [false, false, false, false] },
-                  { text: data.companyData.nit, fontSize: 10, color: '#1F2937', border: [false, false, false, false] }
-                ]] : [])
-              ]
-            },
-            layout: {
-              paddingLeft: () => 0,
-              paddingRight: () => 0,
-              paddingTop: () => 10,
-              paddingBottom: () => 10
-            }
-          }
-        ]
+        ],
+        pageBreak: 'after'
       },
 
-      // RESUMEN DE NÓMINA
+      // ============ PÁGINA 4: ANÁLISIS Y COSTOS ============
       {
-        margin: [40, 25, 40, 0],
+        margin: [40, 40, 40, 40],
         stack: [
+          // Logo
           {
-            text: 'Resumen de Nómina',
-            fontSize: 16,
+            text: 'Tikin.',
+            fontSize: 20,
             bold: true,
             color: '#1F2937',
-            margin: [0, 0, 0, 3]
+            margin: [0, 0, 0, 20]
           },
+
+          // Título de sección
           {
-            canvas: [
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 100,
-                h: 3,
-                color: '#FF3333'
-              }
-            ],
-            margin: [0, 0, 0, 15]
+            text: 'ANÁLISIS DE PARAFISCALES',
+            fontSize: 22,
+            bold: true,
+            color: '#FFFFFF',
+            fillColor: '#1F2937',
+            margin: [-40, 0, -40, 0],
+            padding: [40, 12, 40, 12],
+            alignment: 'center'
           },
+
+          // Resumen ejecutivo
           {
+            margin: [0, 25, 0, 0],
             columns: [
               {
                 width: '50%',
@@ -235,19 +363,19 @@ export async function generateQuotationPDF(data: QuotationData) {
                         x: 0,
                         y: 0,
                         w: 240,
-                        h: 80,
+                        h: 90,
                         color: '#FEF2F2',
-                        r: 8
+                        r: 6
                       }
                     ]
                   },
                   {
-                    margin: [15, -70, 15, 0],
+                    margin: [20, -75, 20, 0],
                     stack: [
-                      { text: 'Total Empleados', fontSize: 9, color: '#6B7280', margin: [0, 0, 0, 4] },
-                      { text: data.employeeCount.toString(), fontSize: 24, bold: true, color: '#FF3333', margin: [0, 0, 0, 6] },
-                      { text: 'División Salario/Bono', fontSize: 9, color: '#6B7280', margin: [0, 0, 0, 4] },
-                      { text: `${data.savingsData.tikin.salaryPercentage}% / ${data.savingsData.tikin.bonusPercentage}%`, fontSize: 12, bold: true, color: '#1F2937' }
+                      { text: 'EMPRESA', fontSize: 9, color: '#9CA3AF', margin: [0, 0, 0, 4] },
+                      { text: data.companyData.companyName, fontSize: 14, bold: true, color: '#E63946', margin: [0, 0, 0, 10] },
+                      { text: 'Total Empleados', fontSize: 9, color: '#6B7280', margin: [0, 0, 0, 3] },
+                      { text: data.employeeCount.toString(), fontSize: 16, bold: true, color: '#1F2937' }
                     ]
                   }
                 ]
@@ -262,274 +390,286 @@ export async function generateQuotationPDF(data: QuotationData) {
                         x: 15,
                         y: 0,
                         w: 240,
-                        h: 80,
-                        color: '#F9FAFB',
-                        r: 8
+                        h: 90,
+                        color: '#F3F4F6',
+                        r: 6
                       }
                     ]
                   },
                   {
-                    margin: [30, -70, 15, 0],
+                    margin: [35, -75, 20, 0],
                     stack: [
-                      { text: 'Nómina Mensual', fontSize: 9, color: '#6B7280', margin: [0, 0, 0, 4] },
-                      { text: formatCOP(data.totalPayroll), fontSize: 16, bold: true, color: '#1F2937', margin: [0, 0, 0, 6] },
-                      { text: 'Nivel ARL', fontSize: 9, color: '#6B7280', margin: [0, 0, 0, 4] },
-                      { text: `Clase ${data.arlRiskLevel}`, fontSize: 12, bold: true, color: '#1F2937' }
+                      { text: 'NÓMINA MENSUAL', fontSize: 9, color: '#9CA3AF', margin: [0, 0, 0, 4] },
+                      { text: formatCOP(data.totalPayroll), fontSize: 14, bold: true, color: '#1F2937', margin: [0, 0, 0, 10] },
+                      { text: 'Configuración', fontSize: 9, color: '#6B7280', margin: [0, 0, 0, 3] },
+                      { text: `${data.savingsData.tikin.salaryPercentage}% Salario + ${data.savingsData.tikin.bonusPercentage}% Bono`, fontSize: 11, bold: true, color: '#1F2937' }
                     ]
                   }
                 ]
               }
             ]
-          }
-        ]
-      },
+          },
 
-      // ANÁLISIS DE PARAFISCALES
-      {
-        margin: [40, 25, 40, 0],
-        stack: [
+          // Tabla comparativa
           {
-            text: 'Análisis de Parafiscales',
-            fontSize: 16,
-            bold: true,
-            color: '#1F2937',
-            margin: [0, 0, 0, 3]
-          },
-          {
-            canvas: [
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 100,
-                h: 3,
-                color: '#FF3333'
-              }
-            ],
-            margin: [0, 0, 0, 15]
-          },
-          {
+            margin: [0, 25, 0, 0],
             table: {
               widths: ['40%', '30%', '30%'],
               headerRows: 1,
               body: [
                 [
-                  { text: 'Concepto', fontSize: 10, bold: true, color: '#FFFFFF', fillColor: '#1F2937' },
-                  { text: 'Tradicional', fontSize: 10, bold: true, color: '#FFFFFF', fillColor: '#1F2937', alignment: 'right' },
-                  { text: 'Con Tikin', fontSize: 10, bold: true, color: '#FFFFFF', fillColor: '#FF3333', alignment: 'right' }
+                  { text: 'Concepto', fontSize: 10, bold: true, color: '#FFFFFF', fillColor: '#1F2937', border: [false, false, false, false] },
+                  { text: 'Tradicional (100%)', fontSize: 10, bold: true, color: '#FFFFFF', fillColor: '#6B7280', alignment: 'right', border: [false, false, false, false] },
+                  { text: 'Con Tikin', fontSize: 10, bold: true, color: '#FFFFFF', fillColor: '#E63946', alignment: 'right', border: [false, false, false, false] }
                 ],
                 [
-                  { text: 'Salud (8.5%)', fontSize: 10, color: '#4B5563' },
-                  { text: formatCOP(data.savingsData.traditional.parafiscales.health), fontSize: 10, alignment: 'right', color: '#1F2937' },
-                  { text: formatCOP(data.savingsData.tikin.parafiscales.health), fontSize: 10, alignment: 'right', color: '#1F2937' }
+                  { text: 'Salud (8.5%)', fontSize: 9, color: '#4B5563', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.traditional.parafiscales.health), fontSize: 9, alignment: 'right', color: '#1F2937', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.tikin.parafiscales.health), fontSize: 9, alignment: 'right', color: '#1F2937', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
                 ],
                 [
-                  { text: 'Pensión (12%)', fontSize: 10, color: '#4B5563', fillColor: '#F9FAFB' },
-                  { text: formatCOP(data.savingsData.traditional.parafiscales.pension), fontSize: 10, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB' },
-                  { text: formatCOP(data.savingsData.tikin.parafiscales.pension), fontSize: 10, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB' }
+                  { text: 'Pensión (12%)', fontSize: 9, color: '#4B5563', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.traditional.parafiscales.pension), fontSize: 9, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.tikin.parafiscales.pension), fontSize: 9, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
                 ],
                 [
-                  { text: 'ARL', fontSize: 10, color: '#4B5563' },
-                  { text: formatCOP(data.savingsData.traditional.parafiscales.arl), fontSize: 10, alignment: 'right', color: '#1F2937' },
-                  { text: formatCOP(data.savingsData.tikin.parafiscales.arl), fontSize: 10, alignment: 'right', color: '#1F2937' }
+                  { text: `ARL (${formatPercentage(ARL_RATES[data.arlRiskLevel] * 100)} - Clase ${data.arlRiskLevel})`, fontSize: 9, color: '#4B5563', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.traditional.parafiscales.arl), fontSize: 9, alignment: 'right', color: '#1F2937', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.tikin.parafiscales.arl), fontSize: 9, alignment: 'right', color: '#1F2937', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
                 ],
                 [
-                  { text: 'SENA (2%)', fontSize: 10, color: '#4B5563', fillColor: '#F9FAFB' },
-                  { text: formatCOP(data.savingsData.traditional.parafiscales.sena), fontSize: 10, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB' },
-                  { text: formatCOP(data.savingsData.tikin.parafiscales.sena), fontSize: 10, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB' }
+                  { text: 'SENA (2%)', fontSize: 9, color: '#4B5563', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.traditional.parafiscales.sena), fontSize: 9, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.tikin.parafiscales.sena), fontSize: 9, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
                 ],
                 [
-                  { text: 'ICBF (3%)', fontSize: 10, color: '#4B5563' },
-                  { text: formatCOP(data.savingsData.traditional.parafiscales.icbf), fontSize: 10, alignment: 'right', color: '#1F2937' },
-                  { text: formatCOP(data.savingsData.tikin.parafiscales.icbf), fontSize: 10, alignment: 'right', color: '#1F2937' }
+                  { text: 'ICBF (3%)', fontSize: 9, color: '#4B5563', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.traditional.parafiscales.icbf), fontSize: 9, alignment: 'right', color: '#1F2937', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.tikin.parafiscales.icbf), fontSize: 9, alignment: 'right', color: '#1F2937', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
                 ],
                 [
-                  { text: 'Caja (4%)', fontSize: 10, color: '#4B5563', fillColor: '#F9FAFB' },
-                  { text: formatCOP(data.savingsData.traditional.parafiscales.caja), fontSize: 10, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB' },
-                  { text: formatCOP(data.savingsData.tikin.parafiscales.caja), fontSize: 10, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB' }
+                  { text: 'Caja Compensación (4%)', fontSize: 9, color: '#4B5563', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.traditional.parafiscales.caja), fontSize: 9, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.savingsData.tikin.parafiscales.caja), fontSize: 9, alignment: 'right', color: '#1F2937', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
                 ],
                 [
-                  { text: 'TOTAL MENSUAL', fontSize: 11, bold: true, color: '#1F2937', fillColor: '#E5E7EB' },
-                  { text: formatCOP(data.savingsData.traditional.parafiscales.total), fontSize: 11, bold: true, alignment: 'right', color: '#1F2937', fillColor: '#E5E7EB' },
-                  { text: formatCOP(data.savingsData.tikin.parafiscales.total), fontSize: 11, bold: true, alignment: 'right', color: '#FF3333', fillColor: '#FEF2F2' }
+                  { text: 'TOTAL MENSUAL', fontSize: 11, bold: true, color: '#1F2937', fillColor: '#E5E7EB', border: [false, false, false, false] },
+                  { text: formatCOP(data.savingsData.traditional.parafiscales.total), fontSize: 11, bold: true, alignment: 'right', color: '#1F2937', fillColor: '#E5E7EB', border: [false, false, false, false] },
+                  { text: formatCOP(data.savingsData.tikin.parafiscales.total), fontSize: 11, bold: true, alignment: 'right', color: '#E63946', fillColor: '#FEF2F2', border: [false, false, false, false] }
                 ]
               ]
             },
             layout: {
-              hLineWidth: (i: number, node: any) => i === 1 || i === node.table.body.length ? 2 : 0,
-              vLineWidth: () => 0,
-              hLineColor: (i: number) => i === 1 ? '#1F2937' : '#FF3333',
-              paddingLeft: () => 12,
-              paddingRight: () => 12,
-              paddingTop: () => 10,
-              paddingBottom: () => 10
+              paddingLeft: () => 10,
+              paddingRight: () => 10,
+              paddingTop: () => 8,
+              paddingBottom: () => 8
             }
-          }
-        ]
-      },
+          },
 
-      // AHORRO CON TIKIN - Destacado
-      {
-        margin: [40, 20, 40, 0],
-        stack: [
+          // Ahorro destacado
           {
-            canvas: [
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 515,
-                h: 65,
-                color: '#DCFCE7',
-                r: 8
-              },
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 6,
-                h: 65,
-                color: '#16A34A',
-                r: 8
-              }
-            ]
-          },
-          {
-            margin: [20, -55, 20, 0],
-            columns: [
-              {
-                width: '*',
-                stack: [
-                  { text: 'Ahorro Mensual con Tikin', fontSize: 13, bold: true, color: '#16A34A', margin: [0, 0, 0, 6] },
-                  { text: formatCOP(data.savingsData.monthlySavings), fontSize: 22, bold: true, color: '#16A34A' }
-                ]
-              },
-              {
-                width: 'auto',
-                stack: [
-                  { text: 'Reducción', fontSize: 10, color: '#6B7280', alignment: 'right', margin: [0, 0, 0, 4] },
-                  { text: formatPercentage(data.savingsData.percentageReduction), fontSize: 18, bold: true, color: '#16A34A', alignment: 'right' }
-                ]
-              }
-            ]
-          }
-        ]
-      },
-
-      // INVERSIÓN TIKIN
-      {
-        margin: [40, 25, 40, 0],
-        stack: [
-          {
-            text: 'Inversión en el Servicio Tikin',
-            fontSize: 16,
-            bold: true,
-            color: '#1F2937',
-            margin: [0, 0, 0, 3]
-          },
-          {
-            canvas: [
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 100,
-                h: 3,
-                color: '#FF3333'
-              }
-            ],
-            margin: [0, 0, 0, 15]
-          },
-          {
-            table: {
-              widths: ['70%', '30%'],
-              body: [
-                [
-                  { text: `Nivel aplicable: ${levelLabels[data.tikinCommission.level]}`, fontSize: 10, color: '#6B7280', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                  { text: formatCOP(data.tikinCommission.monthlyBonusTotal), fontSize: 9, color: '#9CA3AF', alignment: 'right', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
-                ],
-                [
-                  { text: 'Comisión base', fontSize: 10, color: '#6B7280', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                  { text: formatCOP(data.tikinCommission.baseCommission), fontSize: 10, color: '#1F2937', alignment: 'right', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
-                ],
-                [
-                  { text: 'IVA (19%)', fontSize: 10, color: '#6B7280', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] },
-                  { text: formatCOP(data.tikinCommission.iva), fontSize: 10, color: '#1F2937', alignment: 'right', border: [false, false, false, true], borderColor: ['#E5E7EB', '#E5E7EB', '#E5E7EB', '#E5E7EB'] }
-                ],
-                [
-                  { text: 'COSTO TOTAL MENSUAL', fontSize: 11, bold: true, color: '#FF3333', fillColor: '#FEF2F2', border: [false, false, false, false] },
-                  { text: formatCOP(data.tikinCommission.totalCost), fontSize: 13, bold: true, color: '#FF3333', fillColor: '#FEF2F2', alignment: 'right', border: [false, false, false, false] }
-                ]
-              ]
-            },
-            layout: {
-              paddingLeft: () => 0,
-              paddingRight: () => 0,
-              paddingTop: () => 10,
-              paddingBottom: () => 10
-            }
-          }
-        ]
-      },
-
-      // BENEFICIO NETO - Destacado
-      {
-        margin: [40, 20, 40, 0],
-        pageBreak: netMonthlySavings < 0 ? undefined : undefined,
-        stack: [
-          {
-            canvas: [
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 515,
-                h: 75,
-                color: '#D1FAE5',
-                r: 8
-              },
-              {
-                type: 'rect',
-                x: 0,
-                y: 0,
-                w: 6,
-                h: 75,
-                color: '#059669',
-                r: 8
-              }
-            ]
-          },
-          {
-            margin: [20, -60, 20, 0],
+            margin: [0, 20, 0, 0],
             stack: [
-              { text: 'BENEFICIO NETO', fontSize: 14, bold: true, color: '#059669', margin: [0, 0, 0, 8] },
               {
+                canvas: [
+                  {
+                    type: 'rect',
+                    x: 0,
+                    y: 0,
+                    w: 515,
+                    h: 70,
+                    color: '#DCFCE7',
+                    r: 6
+                  }
+                ]
+              },
+              {
+                margin: [20, -55, 20, 0],
                 columns: [
                   {
-                    width: '50%',
+                    width: '*',
                     stack: [
-                      { text: 'Mensual', fontSize: 10, color: '#6B7280', margin: [0, 0, 0, 4] },
-                      { text: formatCOP(netMonthlySavings), fontSize: 18, bold: true, color: '#059669' }
+                      { text: 'AHORRO MENSUAL CON TIKIN', fontSize: 12, bold: true, color: '#059669', margin: [0, 0, 0, 5] },
+                      { text: formatCOP(data.savingsData.monthlySavings), fontSize: 22, bold: true, color: '#059669' }
                     ]
                   },
                   {
-                    width: '50%',
+                    width: 'auto',
                     stack: [
-                      { text: 'Anual', fontSize: 10, color: '#6B7280', margin: [0, 0, 0, 4] },
-                      { text: formatCOP(netAnnualSavings), fontSize: 18, bold: true, color: '#059669' }
+                      { text: 'Reducción', fontSize: 10, color: '#6B7280', alignment: 'right', margin: [0, 0, 0, 3] },
+                      { text: formatPercentage(data.savingsData.percentageReduction), fontSize: 18, bold: true, color: '#059669', alignment: 'right' }
                     ]
                   }
                 ]
               }
             ]
           }
-        ]
+        ],
+        pageBreak: 'after'
       },
 
-      // CALL TO ACTION
+      // ============ PÁGINA 5: COSTOS DEL SERVICIO ============
       {
-        margin: [40, 25, 40, 0],
+        margin: [40, 40, 40, 40],
         stack: [
+          // Logo
+          {
+            text: 'Tikin.',
+            fontSize: 20,
+            bold: true,
+            color: '#1F2937',
+            margin: [0, 0, 0, 20]
+          },
+
+          // Título de sección
+          {
+            text: 'COSTOS DEL SERVICIO',
+            fontSize: 22,
+            bold: true,
+            color: '#FFFFFF',
+            fillColor: '#1F2937',
+            margin: [-40, 0, -40, 0],
+            padding: [40, 12, 40, 12],
+            alignment: 'center'
+          },
+
+          // Descripción
+          {
+            text: 'Pricing simple y transparente',
+            fontSize: 11,
+            color: '#6B7280',
+            margin: [0, 20, 0, 20],
+            alignment: 'center'
+          },
+
+          // Tabla de comisión Tikin
+          {
+            table: {
+              widths: ['60%', '40%'],
+              body: [
+                [
+                  { text: 'CONCEPTO', fontSize: 9, bold: true, color: '#FFFFFF', fillColor: '#E63946', border: [false, false, false, false] },
+                  { text: 'MONTO', fontSize: 9, bold: true, color: '#FFFFFF', fillColor: '#E63946', alignment: 'right', border: [false, false, false, false] }
+                ],
+                [
+                  { text: `Comisión Tikin (Nivel ${data.tikinCommission.level} - ${data.tikinCommission.percentage}%)`, fontSize: 10, color: '#4B5563', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.tikinCommission.monthlyBonusTotal), fontSize: 9, color: '#9CA3AF', alignment: 'right', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
+                ],
+                [
+                  { text: 'Base mensual', fontSize: 10, color: '#4B5563', fillColor: '#F9FAFB', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.tikinCommission.baseCommission), fontSize: 10, color: '#1F2937', fillColor: '#F9FAFB', alignment: 'right', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
+                ],
+                [
+                  { text: 'IVA (19%)', fontSize: 10, color: '#4B5563', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] },
+                  { text: formatCOP(data.tikinCommission.iva), fontSize: 10, color: '#1F2937', alignment: 'right', border: [false, false, false, true], borderColor: ['', '', '', '#E5E7EB'] }
+                ],
+                [
+                  { text: 'TOTAL MENSUAL', fontSize: 12, bold: true, color: '#E63946', fillColor: '#FEF2F2', border: [false, false, false, false] },
+                  { text: formatCOP(data.tikinCommission.totalCost), fontSize: 13, bold: true, color: '#E63946', fillColor: '#FEF2F2', alignment: 'right', border: [false, false, false, false] }
+                ]
+              ]
+            },
+            layout: {
+              paddingLeft: () => 15,
+              paddingRight: () => 15,
+              paddingTop: () => 10,
+              paddingBottom: () => 10
+            }
+          },
+
+          // Beneficio neto
+          {
+            margin: [0, 25, 0, 0],
+            stack: [
+              {
+                canvas: [
+                  {
+                    type: 'rect',
+                    x: 0,
+                    y: 0,
+                    w: 515,
+                    h: 85,
+                    color: '#D1FAE5',
+                    r: 6
+                  }
+                ]
+              },
+              {
+                margin: [20, -70, 20, 0],
+                stack: [
+                  { text: 'BENEFICIO NETO PARA TU EMPRESA', fontSize: 13, bold: true, color: '#059669', margin: [0, 0, 0, 10], alignment: 'center' },
+                  {
+                    columns: [
+                      {
+                        width: '50%',
+                        stack: [
+                          { text: 'Ahorro Mensual Neto', fontSize: 10, color: '#6B7280', margin: [0, 0, 0, 4], alignment: 'center' },
+                          { text: formatCOP(netMonthlySavings), fontSize: 18, bold: true, color: '#059669', alignment: 'center' }
+                        ]
+                      },
+                      {
+                        width: '50%',
+                        stack: [
+                          { text: 'Ahorro Anual Neto', fontSize: 10, color: '#6B7280', margin: [0, 0, 0, 4], alignment: 'center' },
+                          { text: formatCOP(netAnnualSavings), fontSize: 18, bold: true, color: '#059669', alignment: 'center' }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+
+          // Información adicional
+          {
+            margin: [0, 25, 0, 0],
+            stack: [
+              { text: 'Información importante:', fontSize: 10, bold: true, color: '#1F2937', margin: [0, 0, 0, 8] },
+              { text: '• No tenemos mínimo de permanencia', fontSize: 9, color: '#4B5563', margin: [0, 0, 0, 4] },
+              { text: '• Soporte personalizado incluido', fontSize: 9, color: '#4B5563', margin: [0, 0, 0, 4] },
+              { text: '• Plataforma 100% segura y confiable', fontSize: 9, color: '#4B5563', margin: [0, 0, 0, 4] },
+              { text: '• Proceso de implementación ágil', fontSize: 9, color: '#4B5563' }
+            ]
+          }
+        ],
+        pageBreak: 'after'
+      },
+
+      // ============ PÁGINA 6: APROBACIÓN ============
+      {
+        margin: [40, 40, 40, 40],
+        stack: [
+          // Logo
+          {
+            text: 'Tikin.',
+            fontSize: 20,
+            bold: true,
+            color: '#1F2937',
+            margin: [0, 0, 0, 30]
+          },
+
+          // Título
+          {
+            text: 'APROBACIÓN',
+            fontSize: 24,
+            bold: true,
+            color: '#1F2937',
+            margin: [0, 0, 0, 20]
+          },
+
+          // Texto de aprobación
+          {
+            text: [
+              { text: 'Esta propuesta puede ser aprobada instantáneamente añadiendo firma electrónica.\n\n', fontSize: 10, color: '#4B5563' },
+              { text: 'Registrando tu firma aceptas los términos y condiciones de este documento, el uso de la firma electrónica equivale a una firma en documento físico con pluma y papel.', fontSize: 10, color: '#4B5563' }
+            ],
+            lineHeight: 1.5,
+            margin: [0, 0, 0, 30]
+          },
+
+          // Espacio para firma
           {
             canvas: [
               {
@@ -537,29 +677,57 @@ export async function generateQuotationPDF(data: QuotationData) {
                 x: 0,
                 y: 0,
                 w: 515,
-                h: 60,
-                color: '#FEF2F2',
-                r: 8
+                h: 100,
+                color: '#F9FAFB',
+                r: 6
               }
             ]
           },
           {
-            margin: [20, -45, 20, 0],
+            margin: [20, -85, 20, 0],
             stack: [
-              { text: '¿Listo para optimizar tus costos laborales?', fontSize: 14, bold: true, color: '#FF3333', alignment: 'center', margin: [0, 0, 0, 6] },
-              { text: 'Contacta con Tikin para dar el siguiente paso', fontSize: 10, color: '#6B7280', alignment: 'center' }
+              { text: 'Firma del representante legal', fontSize: 10, color: '#9CA3AF', margin: [0, 0, 0, 50] },
+              {
+                canvas: [
+                  {
+                    type: 'line',
+                    x1: 0,
+                    y1: 0,
+                    x2: 200,
+                    y2: 0,
+                    lineWidth: 1,
+                    lineColor: '#D1D5DB'
+                  }
+                ]
+              }
+            ]
+          },
+
+          // Consideraciones
+          {
+            margin: [0, 40, 0, 0],
+            stack: [
+              { text: 'Consideraciones:', fontSize: 11, bold: true, color: '#1F2937', margin: [0, 0, 0, 10] },
+
+              { text: 'Esta propuesta ha sido desarrollada por Tikin y se mantendrá bajo su propiedad hasta el momento en que una aceptación formal se perfeccione, de esta forma, sus contenidos no podrán ser revelados a ningún tercero, así como tampoco los conceptos originales desarrollados para Tikin podrán ser utilizados con fines comerciales.', fontSize: 8, color: '#6B7280', lineHeight: 1.4, margin: [0, 0, 0, 8] },
+
+              { text: 'Tikin cree en la sostenibilidad, por esta razón presentamos propuestas electrónicas en pro del medio ambiente, antes de imprimir este documento, considere si es realmente necesario.', fontSize: 8, color: '#6B7280', lineHeight: 1.4, margin: [0, 0, 0, 15] },
+
+              { text: 'Copyright Tikin ®2025', fontSize: 8, bold: true, color: '#E63946', alignment: 'center' }
+            ]
+          },
+
+          // Badges finales
+          {
+            margin: [0, 25, 0, 0],
+            columns: [
+              { text: 'Confiable', fontSize: 10, bold: true, color: '#4B5563', alignment: 'center' },
+              { text: 'Seguro', fontSize: 10, bold: true, color: '#4B5563', alignment: 'center' },
+              { text: 'Eficiente', fontSize: 10, bold: true, color: '#4B5563', alignment: 'center' },
+              { text: 'Disruptivo', fontSize: 10, bold: true, color: '#4B5563', alignment: 'center' }
             ]
           }
         ]
-      },
-
-      {
-        margin: [40, 15, 40, 0],
-        text: 'Esta cotización es informativa y está sujeta a validación final.',
-        fontSize: 8,
-        color: '#9CA3AF',
-        alignment: 'center',
-        italics: true
       }
     ],
 
