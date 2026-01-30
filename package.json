@@ -1,0 +1,26 @@
+{
+  "name": "simulador",
+  "version": "1.0.0",
+  "description": "Simulador de ahorros en parafiscales para Tikin",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.93.3",
+    "@types/node": "^25.1.0",
+    "@types/react": "^19.2.10",
+    "autoprefixer": "^10.4.23",
+    "jspdf": "^4.0.0",
+    "next": "^14.2.35",
+    "pdfmake": "^0.3.3",
+    "postcss": "^8.5.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.9.3",
+    "zod": "^4.3.6"
+  }
+}
