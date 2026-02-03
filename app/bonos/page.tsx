@@ -186,15 +186,6 @@ export default function BonosPage() {
     }))
   }
 
-  const handleMLConfigComplete = (config: BonusConfig) => {
-    // Handler para cuando se completa la configuración de Mera Liberalidad en flujo ambos
-    setFlowState(prev => ({
-      ...prev,
-      configMeraLiberalidad: config,
-      subPasoAmbos: '4b'
-    }))
-  }
-
   const handleALConfigComplete = (config: BonusConfig) => {
     // Handler para cuando se completa la configuración de Alimentación en flujo ambos
     setFlowState(prev => ({
@@ -474,18 +465,43 @@ export default function BonosPage() {
                 Paso 1 de 2: Configurar Mera Liberalidad
               </h2>
               <p className="text-gray-600">
-                Define la distribución de bonos de mera liberalidad basados en los salarios
+                Define la estructura de compensación (salario base vs bonos) y nivel de riesgo ARL
               </p>
             </div>
-            <BonusDistribution
-              empleados={flowState.empleados}
-              tipoSeleccionado="mera_liberalidad"
-              onConfigsComplete={(configML) => {
-                if (configML) handleMLConfigComplete(configML)
-              }}
-              onBack={() => setFlowState(prev => ({ ...prev, pasoActual: 3, subPasoAmbos: '3b' }))}
-              initialConfigML={flowState.configMeraLiberalidad}
-            />
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SalaryBonusSlider
+                salaryPercentage={flowState.salaryPercentage}
+                onSalaryPercentageChange={handleSalaryPercentageChange}
+                totalCompensation={totalSalary}
+                minPercentage={minSalaryPercentage}
+                maxPercentage={maxSalaryPercentage}
+              />
+
+              <ARLRiskSelector
+                selectedLevel={flowState.arlRiskLevel}
+                onLevelChange={handleARLRiskChange}
+              />
+            </div>
+
+            {savingsData && (
+              <ComparisonView savingsData={savingsData} arlRiskLevel={flowState.arlRiskLevel} />
+            )}
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setFlowState(prev => ({ ...prev, pasoActual: 3, subPasoAmbos: '3b' }))}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                ← Volver
+              </button>
+              <button
+                onClick={() => setFlowState(prev => ({ ...prev, subPasoAmbos: '4b' }))}
+                className="flex-1 px-6 py-3 bg-tikin-red text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+              >
+                Continuar →
+              </button>
+            </div>
           </div>
         )}
 
@@ -644,7 +660,7 @@ export default function BonosPage() {
         )}
 
         {/* Flujo Ambos - Paso 5: Resumen consolidado de ambos tipos de bonos */}
-        {flowState.pasoActual === 5 && isAmbosFlow && flowState.configMeraLiberalidad && flowState.configAlimentacion && flowState.companyData && (
+        {flowState.pasoActual === 5 && isAmbosFlow && savingsData && tikinCommission && flowState.configAlimentacion && flowState.companyData && (
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold text-gray-900 mb-3">
@@ -655,25 +671,31 @@ export default function BonosPage() {
               </p>
             </div>
 
-            {/* Resumen Mera Liberalidad */}
+            {/* Resumen Mera Liberalidad (usando savingsData) */}
             <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-6">
               <h3 className="text-xl font-bold text-blue-900 mb-4">Bonos de Mera Liberalidad</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-blue-700 mb-1">Total en bonos</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.montoTotal)}</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(savingsData.tikin.totalBonusAmount)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-blue-700 mb-1">Fee ({(flowState.configMeraLiberalidad.feePercentage * 100).toFixed(2)}%)</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.feeAmount)}</p>
+                  <p className="text-sm text-blue-700 mb-1">Ahorro en parafiscales</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(savingsData.monthlyParafiscalesSavings)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-blue-700 mb-1">IVA (19%)</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.iva)}</p>
+                  <p className="text-sm text-blue-700 mb-1">Comisión Tikin ({(tikinCommission.percentage * 100).toFixed(2)}%)</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(tikinCommission.baseCommission)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-blue-700 mb-1">Total con fee</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.totalConFee)}</p>
+                  <p className="text-sm text-blue-700 mb-1">Costo total Tikin</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(tikinCommission.total)}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-blue-300">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-blue-700">Beneficio neto mensual:</span>
+                  <span className="text-2xl font-bold text-blue-900">{formatCOP(savingsData.netMonthlySavings)}</span>
                 </div>
               </div>
             </div>
@@ -713,11 +735,15 @@ export default function BonosPage() {
               <div className="text-center">
                 <p className="text-sm text-purple-700 mb-2">Total General Mensual</p>
                 <p className="text-4xl font-bold text-purple-900">
-                  {formatCOP(flowState.configMeraLiberalidad.totalConFee + flowState.configAlimentacion.totalConFee)}
+                  {formatCOP((savingsData.tikin.totalBonusAmount + tikinCommission.total) + flowState.configAlimentacion.totalConFee)}
                 </p>
                 <p className="text-sm text-purple-600 mt-2">
-                  Incluye bonos + fees de ambos tipos
+                  Bonos de ambos tipos + costos Tikin
                 </p>
+                <div className="mt-4 p-4 bg-white/50 rounded-lg">
+                  <p className="text-sm text-purple-700 mb-1">Ahorro neto total (solo Mera Liberalidad)</p>
+                  <p className="text-xl font-bold text-purple-900">{formatCOP(savingsData.netMonthlySavings)}</p>
+                </div>
               </div>
             </div>
 
