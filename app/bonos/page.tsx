@@ -36,7 +36,7 @@ interface BonusFlowState {
   foodBonusEmployees: FoodBonusEmployee[]
   totalEmpleados: number
   pasoActual: number
-  subPasoAmbos?: '3a' | '3b' // Para flujo ambos: 3a = EmployeeLoader, 3b = FoodBonusLoader
+  subPasoAmbos?: '3a' | '3b' | '4a' | '4b' // Para flujo ambos: 3a=EmployeeLoader, 3b=FoodBonusLoader, 4a=Config ML, 4b=Config AL
   configMeraLiberalidad?: BonusConfig
   configAlimentacion?: BonusConfig
   salaryPercentage: number
@@ -181,22 +181,25 @@ export default function BonosPage() {
   const handleContinueFromFoodBonus = () => {
     setFlowState(prev => ({
       ...prev,
-      pasoActual: 4
+      pasoActual: 4,
+      subPasoAmbos: prev.tipoSeleccionado === 'ambos' ? '4a' : undefined
     }))
   }
 
-  const handleBonusConfigsComplete = (configML?: BonusConfig, configAL?: BonusConfig) => {
-    // Handler para cuando BonusDistribution completa la configuración en flujo ambos
+  const handleMLConfigComplete = (config: BonusConfig) => {
+    // Handler para cuando se completa la configuración de Mera Liberalidad en flujo ambos
     setFlowState(prev => ({
       ...prev,
-      configMeraLiberalidad: configML,
-      configAlimentacion: configAL
+      configMeraLiberalidad: config,
+      subPasoAmbos: '4b'
     }))
   }
 
-  const handleContinueFromBonusDistribution = () => {
+  const handleALConfigComplete = (config: BonusConfig) => {
+    // Handler para cuando se completa la configuración de Alimentación en flujo ambos
     setFlowState(prev => ({
       ...prev,
+      configAlimentacion: config,
       pasoActual: 5
     }))
   }
@@ -463,18 +466,47 @@ export default function BonosPage() {
           </div>
         )}
 
-        {/* Flujo Ambos - Paso 4: Configurar distribución de ambos tipos de bonos */}
-        {flowState.pasoActual === 4 && isAmbosFlow && (
+        {/* Flujo Ambos - Paso 4a: Configurar Mera Liberalidad */}
+        {flowState.pasoActual === 4 && isAmbosFlow && flowState.subPasoAmbos === '4a' && (
           <div className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Paso 1 de 2: Configurar Mera Liberalidad
+              </h2>
+              <p className="text-gray-600">
+                Define la distribución de bonos de mera liberalidad basados en los salarios
+              </p>
+            </div>
             <BonusDistribution
               empleados={flowState.empleados}
-              tipoSeleccionado="ambos"
-              onConfigsComplete={(configML, configAL) => {
-                handleBonusConfigsComplete(configML, configAL)
-                handleContinueFromBonusDistribution()
+              tipoSeleccionado="mera_liberalidad"
+              onConfigsComplete={(configML) => {
+                if (configML) handleMLConfigComplete(configML)
               }}
               onBack={() => setFlowState(prev => ({ ...prev, pasoActual: 3, subPasoAmbos: '3b' }))}
               initialConfigML={flowState.configMeraLiberalidad}
+            />
+          </div>
+        )}
+
+        {/* Flujo Ambos - Paso 4b: Configurar Alimentación */}
+        {flowState.pasoActual === 4 && isAmbosFlow && flowState.subPasoAmbos === '4b' && (
+          <div className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Paso 2 de 2: Configurar Alimentación
+              </h2>
+              <p className="text-gray-600">
+                Define la distribución de bonos de alimentación (límite: 41 UVT por empleado)
+              </p>
+            </div>
+            <BonusDistribution
+              empleados={flowState.empleados}
+              tipoSeleccionado="alimentacion"
+              onConfigsComplete={(_, configAL) => {
+                if (configAL) handleALConfigComplete(configAL)
+              }}
+              onBack={() => setFlowState(prev => ({ ...prev, subPasoAmbos: '4a' }))}
               initialConfigAL={flowState.configAlimentacion}
             />
           </div>
