@@ -142,8 +142,8 @@ export default function BonosPage() {
   }
 
   const handleSaveQuotation = () => {
-    // Opcionalmente mostrar un mensaje de confirmación
-    alert('Cotización guardada exitosamente')
+    // Mostrar mensaje de confirmación
+    alert('✅ Cotización guardada exitosamente en la base de datos')
   }
 
   const minSalaryPercentage = 60

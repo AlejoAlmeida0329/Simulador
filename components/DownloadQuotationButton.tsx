@@ -5,6 +5,8 @@ import { CompanyData, TikinCommission } from '@/types/company'
 import { SavingsResult } from '@/types/scenarios'
 import { ARLRiskLevel } from '@/lib/constants/parafiscales'
 import { generateQuotationPDF } from '@/lib/pdf/generate-quotation'
+import { saveQuotation } from '@/lib/supabase/quotations'
+import { QuotationInsert } from '@/types/quotation'
 
 interface DownloadQuotationButtonProps {
   companyData: CompanyData
@@ -28,6 +30,8 @@ export function DownloadQuotationButton({
   onSaveQuotation,
 }: DownloadQuotationButtonProps) {
   const [downloaded, setDownloaded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleDownload = async () => {
     await generateQuotationPDF({
@@ -41,25 +45,65 @@ export function DownloadQuotationButton({
     setDownloaded(true)
   }
 
-  const handleSaveQuotation = () => {
-    // Guardar cotización en localStorage
-    const quotation = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      companyData,
-      savingsData,
-      tikinCommission,
-      arlRiskLevel,
-      employeeCount,
-      totalPayroll,
-    }
+  const handleSaveQuotation = async () => {
+    setSaving(true)
+    setSaveError(null)
 
-    const savedQuotations = JSON.parse(localStorage.getItem('tikin_quotations') || '[]')
-    savedQuotations.push(quotation)
-    localStorage.setItem('tikin_quotations', JSON.stringify(savedQuotations))
+    try {
+      // Construir el objeto de cotización para Supabase
+      const quotationData: QuotationInsert = {
+        // Datos de la empresa
+        company_name: companyData.companyName,
+        contact_name: companyData.contactName,
+        email: companyData.email,
+        phone: companyData.phone || '',
+        nit: companyData.nit,
 
-    if (onSaveQuotation) {
-      onSaveQuotation()
+        // Datos de empleados y nómina
+        employee_count: employeeCount,
+        total_payroll: totalPayroll,
+        arl_risk_level: arlRiskLevel,
+
+        // Datos del escenario Tikin
+        salary_percentage: savingsData.tikin.salaryPercentage,
+        bonus_percentage: savingsData.tikin.bonusPercentage,
+        monthly_bonus_total: savingsData.tikin.totalBonusAmount,
+
+        // Ahorros
+        monthly_savings: savingsData.monthlyParafiscalesSavings,
+        annual_savings: savingsData.annualParafiscalesSavings,
+        percentage_reduction: savingsData.percentageReduction,
+
+        // Comisión Tikin
+        commission_level: tikinCommission.level,
+        commission_percentage: tikinCommission.percentage,
+        base_commission: tikinCommission.baseCommission,
+        iva: tikinCommission.iva,
+        total_commission: tikinCommission.total,
+
+        // Beneficio neto
+        net_monthly_savings: savingsData.netMonthlySavings,
+        net_annual_savings: savingsData.netAnnualSavings,
+
+        // Metadata
+        generated_by: 'Simulador Tikin',
+        pdf_filename: `cotizacion_${companyData.companyName.toLowerCase().replace(/\s+/g, '_')}_${Date.now()}.pdf`
+      }
+
+      const result = await saveQuotation(quotationData)
+
+      if (result.success) {
+        if (onSaveQuotation) {
+          onSaveQuotation()
+        }
+      } else {
+        setSaveError(result.error || 'Error al guardar la cotización')
+      }
+    } catch (error) {
+      console.error('Error saving quotation:', error)
+      setSaveError('Error inesperado al guardar')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -140,27 +184,50 @@ export function DownloadQuotationButton({
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={handleSaveQuotation}
-            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-all font-medium"
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
-              />
-            </svg>
-            Guardar Cotización
+            {saving ? (
+              <>
+                <svg
+                  className="w-5 h-5 animate-spin"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"
+                  />
+                </svg>
+                Guardar Cotización
+              </>
+            )}
           </button>
 
           <button
             onClick={handleNewQuotation}
-            className="inline-flex items-center justify-center gap-2 bg-tikin-red text-white px-6 py-3 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-tikin-red focus:ring-offset-2 transition-all font-medium"
+            disabled={saving}
+            className="inline-flex items-center justify-center gap-2 bg-tikin-red text-white px-6 py-3 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-tikin-red focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg
               className="w-5 h-5"
@@ -179,8 +246,16 @@ export function DownloadQuotationButton({
           </button>
         </div>
 
+        {saveError && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-800">
+              <span className="font-semibold">Error:</span> {saveError}
+            </p>
+          </div>
+        )}
+
         <p className="text-xs text-gray-500 mt-4">
-          Puedes guardar esta cotización para referencia futura o crear una nueva
+          Puedes guardar esta cotización en la base de datos para referencia futura o crear una nueva
         </p>
       </div>
     </div>
