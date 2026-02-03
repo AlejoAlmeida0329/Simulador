@@ -5,13 +5,14 @@ import { BonusTypeSelector } from '@/components/bonuses/BonusTypeSelector'
 import { BonusCompanyDataForm } from '@/components/bonuses/BonusCompanyDataForm'
 import { EmployeeLoader } from '@/components/bonuses/EmployeeLoader'
 import { FoodBonusLoader } from '@/components/bonuses/FoodBonusLoader'
+import { BonusDistribution } from '@/components/bonuses/BonusDistribution'
 import { SalaryBonusSlider } from '@/components/SalaryBonusSlider'
 import { ARLRiskSelector } from '@/components/ARLRiskSelector'
 import { ComparisonView } from '@/components/ComparisonView'
 import { SavingsMetrics } from '@/components/SavingsMetrics'
 import { TikinCostCard } from '@/components/TikinCostCard'
 import { DownloadQuotationButton } from '@/components/DownloadQuotationButton'
-import { BonusType, BonusCompanyData, Employee, EmployeeBatch, FEE_ALIMENTACION, IVA } from '@/types/bonuses'
+import { BonusType, BonusCompanyData, Employee, EmployeeBatch, BonusConfig, FEE_ALIMENTACION, IVA } from '@/types/bonuses'
 import { ARLRiskLevel } from '@/lib/constants/parafiscales'
 import {
   calculateTraditionalScenario,
@@ -35,6 +36,9 @@ interface BonusFlowState {
   foodBonusEmployees: FoodBonusEmployee[]
   totalEmpleados: number
   pasoActual: number
+  subPasoAmbos?: '3a' | '3b' // Para flujo ambos: 3a = EmployeeLoader, 3b = FoodBonusLoader
+  configMeraLiberalidad?: BonusConfig
+  configAlimentacion?: BonusConfig
   salaryPercentage: number
   arlRiskLevel: ARLRiskLevel
 }
@@ -92,7 +96,8 @@ export default function BonosPage() {
     setFlowState(prev => ({
       ...prev,
       companyData: data,
-      pasoActual: 3
+      pasoActual: 3,
+      subPasoAmbos: prev.tipoSeleccionado === 'ambos' ? '3a' : undefined
     }))
   }
 
@@ -116,6 +121,14 @@ export default function BonosPage() {
     setFlowState(prev => ({
       ...prev,
       pasoActual: 4
+    }))
+  }
+
+  const handleContinueFromStep3a = () => {
+    // En flujo ambos, después de cargar empleados (3a), vamos a 3b para bonos de alimentación
+    setFlowState(prev => ({
+      ...prev,
+      subPasoAmbos: '3b'
     }))
   }
 
@@ -172,6 +185,22 @@ export default function BonosPage() {
     }))
   }
 
+  const handleBonusConfigsComplete = (configML?: BonusConfig, configAL?: BonusConfig) => {
+    // Handler para cuando BonusDistribution completa la configuración en flujo ambos
+    setFlowState(prev => ({
+      ...prev,
+      configMeraLiberalidad: configML,
+      configAlimentacion: configAL
+    }))
+  }
+
+  const handleContinueFromBonusDistribution = () => {
+    setFlowState(prev => ({
+      ...prev,
+      pasoActual: 5
+    }))
+  }
+
   // Cálculos para bonos de alimentación
   const foodBonusData = useMemo(() => {
     if (flowState.foodBonusEmployees.length === 0) return null
@@ -197,9 +226,10 @@ export default function BonosPage() {
   const minSalaryPercentage = 60
   const maxSalaryPercentage = 90
 
-  // Determinar si es flujo de mera liberalidad o alimentación
+  // Determinar el tipo de flujo
   const isMeraLiberalidadFlow = flowState.tipoSeleccionado === 'mera_liberalidad'
   const isAlimentacionFlow = flowState.tipoSeleccionado === 'alimentacion'
+  const isAmbosFlow = flowState.tipoSeleccionado === 'ambos'
 
   return (
     <div className="space-y-6">
@@ -272,6 +302,49 @@ export default function BonosPage() {
             }}
             onBack={() => handleBackToPaso(2)}
           />
+        )}
+
+        {/* Flujo Ambos - Paso 3a: Cargar empleados con salarios */}
+        {flowState.pasoActual === 3 && isAmbosFlow && flowState.subPasoAmbos === '3a' && (
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Paso 1 de 2: Empleados con Salarios
+              </h2>
+              <p className="text-gray-600">
+                Primero, agrega los empleados con sus salarios para bonos de mera liberalidad
+              </p>
+            </div>
+            <EmployeeLoader
+              empleados={flowState.empleados}
+              lotes={flowState.lotes}
+              onEmpleadosChange={handleEmpleadosChange}
+              onContinue={handleContinueFromStep3a}
+              onBack={() => handleBackToPaso(2)}
+            />
+          </div>
+        )}
+
+        {/* Flujo Ambos - Paso 3b: Cargar montos de bonos de alimentación */}
+        {flowState.pasoActual === 3 && isAmbosFlow && flowState.subPasoAmbos === '3b' && (
+          <div className="space-y-4">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Paso 2 de 2: Bonos de Alimentación
+              </h2>
+              <p className="text-gray-600">
+                Ahora, define los montos de bonos de alimentación por empleado
+              </p>
+            </div>
+            <FoodBonusLoader
+              initialEmployees={flowState.foodBonusEmployees}
+              onContinue={(employees) => {
+                handleFoodBonusEmployeesChange(employees)
+                handleContinueFromFoodBonus()
+              }}
+              onBack={() => setFlowState(prev => ({ ...prev, subPasoAmbos: '3a' }))}
+            />
+          </div>
         )}
 
         {flowState.pasoActual === 4 && isMeraLiberalidadFlow && (
@@ -390,6 +463,23 @@ export default function BonosPage() {
           </div>
         )}
 
+        {/* Flujo Ambos - Paso 4: Configurar distribución de ambos tipos de bonos */}
+        {flowState.pasoActual === 4 && isAmbosFlow && (
+          <div className="space-y-6">
+            <BonusDistribution
+              empleados={flowState.empleados}
+              tipoSeleccionado="ambos"
+              onConfigsComplete={(configML, configAL) => {
+                handleBonusConfigsComplete(configML, configAL)
+                handleContinueFromBonusDistribution()
+              }}
+              onBack={() => setFlowState(prev => ({ ...prev, pasoActual: 3, subPasoAmbos: '3b' }))}
+              initialConfigML={flowState.configMeraLiberalidad}
+              initialConfigAL={flowState.configAlimentacion}
+            />
+          </div>
+        )}
+
         {flowState.pasoActual === 5 && isMeraLiberalidadFlow && savingsData && tikinCommission && flowState.companyData && (
           <div className="space-y-6">
             <div className="text-center mb-6">
@@ -461,6 +551,145 @@ export default function BonosPage() {
             </div>
 
             {/* Botones de descarga y acciones - adaptado para alimentación */}
+            <div className="space-y-4">
+              <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                    Generar Cotización
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    Descarga la cotización completa en PDF para enviar al cliente
+                  </p>
+                  <button
+                    onClick={() => alert('Función de descarga de PDF próximamente')}
+                    className="inline-flex items-center gap-2 bg-tikin-red text-white px-8 py-4 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-tikin-red focus:ring-offset-2 transition-all font-medium text-base"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Descargar Cotización PDF
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button
+                    onClick={handleSaveQuotation}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-all font-medium"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                    </svg>
+                    Guardar Cotización
+                  </button>
+
+                  <button
+                    onClick={handleNewQuotation}
+                    className="flex-1 inline-flex items-center justify-center gap-2 bg-tikin-red text-white px-6 py-3 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-tikin-red focus:ring-offset-2 transition-all font-medium"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Nueva Cotización
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 text-center mt-4">
+                  Guarda esta cotización en la base de datos para referencia futura o crea una nueva
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => handleBackToPaso(4)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                ← Volver
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Flujo Ambos - Paso 5: Resumen consolidado de ambos tipos de bonos */}
+        {flowState.pasoActual === 5 && isAmbosFlow && flowState.configMeraLiberalidad && flowState.configAlimentacion && flowState.companyData && (
+          <div className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Resumen Consolidado
+              </h2>
+              <p className="text-gray-600">
+                Revisa el resumen de ambos tipos de bonos y descarga la cotización
+              </p>
+            </div>
+
+            {/* Resumen Mera Liberalidad */}
+            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-6">
+              <h3 className="text-xl font-bold text-blue-900 mb-4">Bonos de Mera Liberalidad</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-blue-700 mb-1">Total en bonos</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.montoTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-blue-700 mb-1">Fee ({(flowState.configMeraLiberalidad.feePercentage * 100).toFixed(2)}%)</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.feeAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-blue-700 mb-1">IVA (19%)</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.iva)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-blue-700 mb-1">Total con fee</p>
+                  <p className="text-2xl font-bold text-blue-900">{formatCOP(flowState.configMeraLiberalidad.totalConFee)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumen Alimentación */}
+            <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 p-6">
+              <h3 className="text-xl font-bold text-green-900 mb-4">Bonos de Alimentación</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-green-700 mb-1">Total en bonos</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.montoTotal)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-green-700 mb-1">Fee (1.25%)</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.feeAmount)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-green-700 mb-1">IVA (19%)</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.iva)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-green-700 mb-1">Total con fee</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.totalConFee)}</p>
+                </div>
+              </div>
+              {!flowState.configAlimentacion.validado && (
+                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                  <p className="text-sm text-orange-800">
+                    <strong>⚠️ Advertencia:</strong> {flowState.configAlimentacion.empleadosExcedenLimite} empleado(s) exceden el límite legal.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Total Consolidado */}
+            <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-6">
+              <div className="text-center">
+                <p className="text-sm text-purple-700 mb-2">Total General Mensual</p>
+                <p className="text-4xl font-bold text-purple-900">
+                  {formatCOP(flowState.configMeraLiberalidad.totalConFee + flowState.configAlimentacion.totalConFee)}
+                </p>
+                <p className="text-sm text-purple-600 mt-2">
+                  Incluye bonos + fees de ambos tipos
+                </p>
+              </div>
+            </div>
+
+            {/* Botones de acción */}
             <div className="space-y-4">
               <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
                 <div className="text-center">
