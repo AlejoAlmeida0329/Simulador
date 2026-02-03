@@ -114,8 +114,9 @@ export function DownloadQuotationButton({
     }
   }
 
-  if (!downloaded) {
-    return (
+  return (
+    <div className="space-y-4">
+      {/* Botón de Descargar PDF */}
       <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
         <div className="text-center">
           <h3 className="text-lg font-semibold text-gray-900 mb-3">
@@ -145,47 +146,27 @@ export function DownloadQuotationButton({
             Descargar Cotización PDF
           </button>
 
+          {downloaded && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800 font-medium">
+                ✓ PDF descargado exitosamente
+              </p>
+            </div>
+          )}
+
           <p className="text-xs text-gray-500 mt-4">
             El PDF incluye datos del cliente, comparación de escenarios, ahorros y costos del servicio
           </p>
         </div>
       </div>
-    )
-  }
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-      <div className="text-center">
-        <div className="flex items-center justify-center mb-4">
-          <div className="bg-green-100 rounded-full p-3">
-            <svg
-              className="w-8 h-8 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          </div>
-        </div>
-
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Cotización Generada
-        </h3>
-        <p className="text-sm text-gray-600 mb-6">
-          El PDF ha sido descargado exitosamente
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+      {/* Botones de Acción */}
+      <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+        <div className="flex flex-col sm:flex-row gap-4">
           <button
             onClick={handleSaveQuotation}
             disabled={saving}
-            className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving ? (
               <>
@@ -227,7 +208,7 @@ export function DownloadQuotationButton({
           <button
             onClick={handleNewQuotation}
             disabled={saving}
-            className="inline-flex items-center justify-center gap-2 bg-tikin-red text-white px-6 py-3 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-tikin-red focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 inline-flex items-center justify-center gap-2 bg-tikin-red text-white px-6 py-3 rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-tikin-red focus:ring-offset-2 transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg
               className="w-5 h-5"
@@ -254,8 +235,8 @@ export function DownloadQuotationButton({
           </div>
         )}
 
-        <p className="text-xs text-gray-500 mt-4">
-          Puedes guardar esta cotización en la base de datos para referencia futura o crear una nueva
+        <p className="text-xs text-gray-500 text-center mt-4">
+          Guarda esta cotización en la base de datos para referencia futura o crea una nueva
         </p>
       </div>
     </div>
