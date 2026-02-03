@@ -41,6 +41,7 @@ export function BonusDistribution({
     initialConfigML?.montoTotal.toString() || ''
   )
   const [mlMontoPorEmpleado, setMlMontoPorEmpleado] = useState<string>('')
+  const [mlPorcentajeBonos, setMlPorcentajeBonos] = useState<string>('30')
   const [mlConfig, setMlConfig] = useState<BonusConfig | undefined>(initialConfigML)
 
   // Alimentación state
@@ -51,6 +52,7 @@ export function BonusDistribution({
     initialConfigAL?.montoTotal.toString() || ''
   )
   const [alMontoPorEmpleado, setAlMontoPorEmpleado] = useState<string>('')
+  const [alPorcentajeBonos, setAlPorcentajeBonos] = useState<string>('30')
   const [alConfig, setAlConfig] = useState<BonusConfig | undefined>(initialConfigAL)
   const [alValidacion, setAlValidacion] = useState<{ valido: boolean; errores: any[] }>({
     valido: true,
@@ -83,6 +85,25 @@ export function BonusDistribution({
         return
       }
       asignaciones = distributeFixed(empleados, montoPorEmpleado)
+      montoTotal = asignaciones.reduce((sum, a) => sum + a.montoBono, 0)
+    } else if (mlMetodo === 'personalizado') {
+      const porcentaje = parseFloat(mlPorcentajeBonos)
+      if (!porcentaje || porcentaje <= 0 || porcentaje >= 100) {
+        alert('Ingresa un porcentaje válido entre 1 y 99')
+        return
+      }
+      // Calcular bonos como porcentaje del salario de cada empleado
+      asignaciones = empleados.map(empleado => {
+        const montoBono = empleado.salario * (porcentaje / 100)
+        return {
+          empleadoId: empleado.id,
+          empleadoNombre: empleado.nombre,
+          salario: empleado.salario,
+          montoBono,
+          excedeLimit: false,
+          exceso: 0
+        }
+      })
       montoTotal = asignaciones.reduce((sum, a) => sum + a.montoBono, 0)
     }
 
@@ -123,6 +144,29 @@ export function BonusDistribution({
         return
       }
       asignaciones = distributeFixed(empleados, montoPorEmpleado, LIMITE_ALIMENTACION_MENSUAL)
+      montoTotal = asignaciones.reduce((sum, a) => sum + a.montoBono, 0)
+    } else if (alMetodo === 'personalizado') {
+      const porcentaje = parseFloat(alPorcentajeBonos)
+      if (!porcentaje || porcentaje <= 0 || porcentaje >= 100) {
+        alert('Ingresa un porcentaje válido entre 1 y 99')
+        return
+      }
+      // Calcular bonos como porcentaje del salario de cada empleado con límite
+      asignaciones = empleados.map(empleado => {
+        let montoBono = empleado.salario * (porcentaje / 100)
+        const excedeLimit = montoBono > LIMITE_ALIMENTACION_MENSUAL
+        const exceso = excedeLimit ? montoBono - LIMITE_ALIMENTACION_MENSUAL : 0
+
+        // No aplicar el límite aún, dejar que el usuario vea los excesos
+        return {
+          empleadoId: empleado.id,
+          empleadoNombre: empleado.nombre,
+          salario: empleado.salario,
+          montoBono,
+          excedeLimit,
+          exceso
+        }
+      })
       montoTotal = asignaciones.reduce((sum, a) => sum + a.montoBono, 0)
     }
 
@@ -226,7 +270,7 @@ export function BonusDistribution({
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Método de Distribución
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button
                 onClick={() => setMlMetodo('proporcional')}
                 className={`p-4 border-2 rounded-lg text-left transition-colors ${
@@ -235,9 +279,9 @@ export function BonusDistribution({
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <p className="font-semibold text-gray-900">Proporcional al Salario</p>
+                <p className="font-semibold text-gray-900">Monto Total</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Cada empleado recibe bonos proporcionales a su salario
+                  Distribuye un monto total proporcional a los salarios
                 </p>
               </button>
               <button
@@ -250,7 +294,20 @@ export function BonusDistribution({
               >
                 <p className="font-semibold text-gray-900">Monto Fijo</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Todos los empleados reciben el mismo monto
+                  Todos reciben el mismo monto
+                </p>
+              </button>
+              <button
+                onClick={() => setMlMetodo('personalizado')}
+                className={`p-4 border-2 rounded-lg text-left transition-colors ${
+                  mlMetodo === 'personalizado'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <p className="font-semibold text-gray-900">% del Salario</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Cada empleado recibe un % de su salario
                 </p>
               </button>
             </div>
@@ -273,7 +330,7 @@ export function BonusDistribution({
                   placeholder="Ej: 10000000"
                 />
               </div>
-            ) : (
+            ) : mlMetodo === 'fijo' ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Monto por Empleado
@@ -287,6 +344,28 @@ export function BonusDistribution({
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Ej: 500000"
                 />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Porcentaje del Salario para Bonos
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={mlPorcentajeBonos}
+                    onChange={(e) => setMlPorcentajeBonos(e.target.value)}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="30"
+                  />
+                  <span className="text-2xl font-semibold text-gray-700">%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Ejemplo: Si un empleado gana $3.000.000 y configuras 30%, recibirá $900.000 en bonos
+                  (quedando {100 - parseInt(mlPorcentajeBonos || '0')}% como salario base)
+                </p>
               </div>
             )}
           </div>
@@ -342,7 +421,7 @@ export function BonusDistribution({
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Método de Distribución
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <button
                 onClick={() => setAlMetodo('proporcional')}
                 className={`p-4 border-2 rounded-lg text-left transition-colors ${
@@ -351,9 +430,9 @@ export function BonusDistribution({
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <p className="font-semibold text-gray-900">Proporcional al Salario</p>
+                <p className="font-semibold text-gray-900">Monto Total</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Cada empleado recibe bonos proporcionales a su salario
+                  Distribuye un monto total proporcional a los salarios
                 </p>
               </button>
               <button
@@ -366,7 +445,20 @@ export function BonusDistribution({
               >
                 <p className="font-semibold text-gray-900">Monto Fijo</p>
                 <p className="text-sm text-gray-600 mt-1">
-                  Todos los empleados reciben el mismo monto
+                  Todos reciben el mismo monto
+                </p>
+              </button>
+              <button
+                onClick={() => setAlMetodo('personalizado')}
+                className={`p-4 border-2 rounded-lg text-left transition-colors ${
+                  alMetodo === 'personalizado'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <p className="font-semibold text-gray-900">% del Salario</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Cada empleado recibe un % de su salario
                 </p>
               </button>
             </div>
@@ -389,7 +481,7 @@ export function BonusDistribution({
                   placeholder="Ej: 5000000"
                 />
               </div>
-            ) : (
+            ) : alMetodo === 'fijo' ? (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Monto por Empleado
@@ -406,6 +498,31 @@ export function BonusDistribution({
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Límite legal: {formatCOP(LIMITE_ALIMENTACION_MENSUAL)} por empleado/mes
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Porcentaje del Salario para Bonos
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={alPorcentajeBonos}
+                    onChange={(e) => setAlPorcentajeBonos(e.target.value)}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    placeholder="30"
+                  />
+                  <span className="text-2xl font-semibold text-gray-700">%</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Ejemplo: Si un empleado gana $3.000.000 y configuras 30%, recibirá $900.000 en bonos
+                  (quedando {100 - parseInt(alPorcentajeBonos || '0')}% como salario base)
+                </p>
+                <p className="text-xs text-orange-600 mt-1 font-medium">
+                  ⚠️ Se validará automáticamente el límite de {formatCOP(LIMITE_ALIMENTACION_MENSUAL)} por empleado
                 </p>
               </div>
             )}
