@@ -4,7 +4,8 @@ import { useState, useMemo } from 'react'
 import { BonusTypeSelector } from '@/components/bonuses/BonusTypeSelector'
 import { BonusCompanyDataForm } from '@/components/bonuses/BonusCompanyDataForm'
 import { EmployeeLoader } from '@/components/bonuses/EmployeeLoader'
-import { FoodBonusLoader } from '@/components/bonuses/FoodBonusLoader'
+import { FoodBonusLoader, FoodBonusEmployee } from '@/components/bonuses/FoodBonusLoader'
+import { BothBonusesLoader, BothBonusesEmployee } from '@/components/bonuses/BothBonusesLoader'
 import { BonusDistribution } from '@/components/bonuses/BonusDistribution'
 import { SalaryBonusSlider } from '@/components/SalaryBonusSlider'
 import { ARLRiskSelector } from '@/components/ARLRiskSelector'
@@ -22,21 +23,16 @@ import {
 import { calculateTikinCommission } from '@/lib/calculations/tikin-commission'
 import { formatCOP } from '@/lib/formatters'
 
-interface FoodBonusEmployee {
-  id: string
-  cantidad: number
-  montoPorEmpleado: number
-}
-
 interface BonusFlowState {
   tipoSeleccionado?: BonusType
   companyData?: BonusCompanyData
   empleados: Employee[]
   lotes: EmployeeBatch[]
   foodBonusEmployees: FoodBonusEmployee[]
+  bothBonusesEmployees: BothBonusesEmployee[]  // Para flujo ambos
   totalEmpleados: number
   pasoActual: number
-  subPasoAmbos?: '3a' | '3b' | '4a' | '4b' // Para flujo ambos: 3a=EmployeeLoader, 3b=FoodBonusLoader, 4a=Config ML, 4b=Config AL
+  subPasoAmbos?: '3a' | '3b' | '4a' | '4b' // Deprecated, will be removed
   configMeraLiberalidad?: BonusConfig
   configAlimentacion?: BonusConfig
   salaryPercentage: number
@@ -48,6 +44,7 @@ export default function BonosPage() {
     empleados: [],
     lotes: [],
     foodBonusEmployees: [],
+    bothBonusesEmployees: [],
     totalEmpleados: 0,
     pasoActual: 1,
     salaryPercentage: 70, // Starts at 70% (30% bonus)
@@ -56,8 +53,16 @@ export default function BonosPage() {
 
   // Calculate total salary from employees
   const totalSalary = useMemo(() => {
+    if (flowState.tipoSeleccionado === 'ambos' && flowState.bothBonusesEmployees.length > 0) {
+      // Para flujo ambos, calcular desde bothBonusesEmployees
+      return flowState.bothBonusesEmployees.reduce(
+        (sum, emp) => sum + (emp.cantidad * emp.salarioPorEmpleado),
+        0
+      )
+    }
+    // Para flujos individuales ML y AL
     return flowState.empleados.reduce((sum, emp) => sum + emp.salario, 0)
-  }, [flowState.empleados])
+  }, [flowState.empleados, flowState.bothBonusesEmployees, flowState.tipoSeleccionado])
 
   // Calculate bonus percentage
   const bonusPercentage = 100 - flowState.salaryPercentage
@@ -298,47 +303,19 @@ export default function BonosPage() {
           />
         )}
 
-        {/* Flujo Ambos - Paso 3a: Cargar empleados con salarios */}
-        {flowState.pasoActual === 3 && isAmbosFlow && flowState.subPasoAmbos === '3a' && (
-          <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                Paso 1 de 2: Empleados con Salarios
-              </h2>
-              <p className="text-gray-600">
-                Primero, agrega los empleados con sus salarios para bonos de mera liberalidad
-              </p>
-            </div>
-            <EmployeeLoader
-              empleados={flowState.empleados}
-              lotes={flowState.lotes}
-              onEmpleadosChange={handleEmpleadosChange}
-              onContinue={handleContinueFromStep3a}
-              onBack={() => handleBackToPaso(2)}
-            />
-          </div>
-        )}
-
-        {/* Flujo Ambos - Paso 3b: Cargar montos de bonos de alimentación */}
-        {flowState.pasoActual === 3 && isAmbosFlow && flowState.subPasoAmbos === '3b' && (
-          <div className="space-y-4">
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                Paso 2 de 2: Bonos de Alimentación
-              </h2>
-              <p className="text-gray-600">
-                Ahora, define los montos de bonos de alimentación por empleado
-              </p>
-            </div>
-            <FoodBonusLoader
-              initialEmployees={flowState.foodBonusEmployees}
-              onContinue={(employees) => {
-                handleFoodBonusEmployeesChange(employees)
-                handleContinueFromFoodBonus()
-              }}
-              onBack={() => setFlowState(prev => ({ ...prev, subPasoAmbos: '3a' }))}
-            />
-          </div>
+        {/* Flujo Ambos - Paso 3: Cargar empleados con ambos tipos de bonos */}
+        {flowState.pasoActual === 3 && isAmbosFlow && (
+          <BothBonusesLoader
+            initialEmployees={flowState.bothBonusesEmployees}
+            onContinue={(employees) => {
+              setFlowState(prev => ({
+                ...prev,
+                bothBonusesEmployees: employees,
+                pasoActual: 4
+              }))
+            }}
+            onBack={() => handleBackToPaso(2)}
+          />
         )}
 
         {flowState.pasoActual === 4 && isMeraLiberalidadFlow && (

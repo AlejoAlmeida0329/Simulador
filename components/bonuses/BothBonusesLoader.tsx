@@ -5,42 +5,46 @@ import { v4 as uuidv4 } from 'uuid'
 import { formatCOP } from '@/lib/formatters'
 import { LIMITE_ALIMENTACION_MENSUAL } from '@/types/bonuses'
 
-const MAX_BONUS_PERCENTAGE = 40 // Bonos no pueden superar 40% del salario
+const MAX_TOTAL_BONUS_PERCENTAGE = 40 // ML + AL no puede superar 40% del salario
 
-export interface FoodBonusEmployee {
+export interface BothBonusesEmployee {
   id: string
   cantidad: number
   salarioPorEmpleado: number
-  montoPorEmpleado: number
+  porcentajeML: number  // 0-40
+  montoAL: number
 }
 
-interface FoodBonusLoaderProps {
-  onContinue: (employees: FoodBonusEmployee[]) => void
+interface BothBonusesLoaderProps {
+  onContinue: (employees: BothBonusesEmployee[]) => void
   onBack: () => void
-  initialEmployees?: FoodBonusEmployee[]
+  initialEmployees?: BothBonusesEmployee[]
 }
 
-export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: FoodBonusLoaderProps) {
-  const [employees, setEmployees] = useState<FoodBonusEmployee[]>(initialEmployees)
+export function BothBonusesLoader({ onContinue, onBack, initialEmployees = [] }: BothBonusesLoaderProps) {
+  const [employees, setEmployees] = useState<BothBonusesEmployee[]>(initialEmployees)
   const [cantidad, setCantidad] = useState<string>('')
   const [salarioPorEmpleado, setSalarioPorEmpleado] = useState<string>('')
-  const [montoPorEmpleado, setMontoPorEmpleado] = useState<string>('')
+  const [porcentajeML, setPorcentajeML] = useState<number>(25)
+  const [montoAL, setMontoAL] = useState<string>('')
 
   const totalEmpleados = employees.reduce((sum, emp) => sum + emp.cantidad, 0)
   const totalNomina = employees.reduce((sum, emp) => sum + (emp.cantidad * emp.salarioPorEmpleado), 0)
-  const totalMontoDispersado = employees.reduce((sum, emp) => sum + (emp.cantidad * emp.montoPorEmpleado), 0)
+  const totalBonosML = employees.reduce((sum, emp) => sum + (emp.cantidad * emp.salarioPorEmpleado * emp.porcentajeML / 100), 0)
+  const totalBonosAL = employees.reduce((sum, emp) => sum + (emp.cantidad * emp.montoAL), 0)
 
   // Validación en tiempo real para el formulario actual
   const salarioNum = parseFloat(salarioPorEmpleado)
-  const montoNum = parseFloat(montoPorEmpleado)
-  const porcentajeBono = salarioNum > 0 ? (montoNum / salarioNum) * 100 : 0
-  const excede40Percent = porcentajeBono > MAX_BONUS_PERCENTAGE
-  const excedeUVT = montoNum > LIMITE_ALIMENTACION_MENSUAL
+  const montoALNum = parseFloat(montoAL)
+  const montoMLCalculado = salarioNum * (porcentajeML / 100)
+  const porcentajeTotal = salarioNum > 0 ? ((montoMLCalculado + montoALNum) / salarioNum) * 100 : 0
+  const excede40Percent = porcentajeTotal > MAX_TOTAL_BONUS_PERCENTAGE
+  const excedeUVT = montoALNum > LIMITE_ALIMENTACION_MENSUAL
 
   const handleAddBatch = () => {
     const cantidadNum = parseInt(cantidad)
     const salarioNum = parseFloat(salarioPorEmpleado)
-    const montoNum = parseFloat(montoPorEmpleado)
+    const montoALNum = parseFloat(montoAL)
 
     if (!cantidadNum || cantidadNum <= 0) {
       alert('Ingresa una cantidad válida de empleados')
@@ -52,32 +56,40 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
       return
     }
 
-    if (!montoNum || montoNum <= 0) {
-      alert('Ingresa un monto válido de bono de alimentación')
+    if (porcentajeML < 0 || porcentajeML > MAX_TOTAL_BONUS_PERCENTAGE) {
+      alert(`El porcentaje de ML debe estar entre 0% y ${MAX_TOTAL_BONUS_PERCENTAGE}%`)
       return
     }
 
-    const porcentajeBono = (montoNum / salarioNum) * 100
-
-    if (porcentajeBono > MAX_BONUS_PERCENTAGE) {
-      alert(`⚠️ El bono (${porcentajeBono.toFixed(1)}%) excede el límite legal del ${MAX_BONUS_PERCENTAGE}% del salario.\n\nPuedes agregarlo, pero se mostrará como exceso en el resumen.`)
+    if (!montoALNum || montoALNum < 0) {
+      alert('Ingresa un monto válido de alimentación (puede ser 0)')
+      return
     }
 
-    if (montoNum > LIMITE_ALIMENTACION_MENSUAL) {
-      alert(`⚠️ El monto excede el límite legal de ${formatCOP(LIMITE_ALIMENTACION_MENSUAL)} (41 UVT).\n\nPuedes agregarlo, pero se mostrará como exceso en el resumen.`)
+    const montoML = salarioNum * (porcentajeML / 100)
+    const porcentajeTotal = ((montoML + montoALNum) / salarioNum) * 100
+
+    if (porcentajeTotal > MAX_TOTAL_BONUS_PERCENTAGE) {
+      alert(`⚠️ Los bonos totales (${porcentajeTotal.toFixed(1)}%) exceden el límite legal del ${MAX_TOTAL_BONUS_PERCENTAGE}%.\n\nPuedes agregarlo, pero se mostrará como exceso en el resumen.`)
     }
 
-    const newBatch: FoodBonusEmployee = {
+    if (montoALNum > LIMITE_ALIMENTACION_MENSUAL) {
+      alert(`⚠️ El bono de alimentación excede el límite legal de ${formatCOP(LIMITE_ALIMENTACION_MENSUAL)} (41 UVT).\n\nPuedes agregarlo, pero se mostrará como exceso en el resumen.`)
+    }
+
+    const newBatch: BothBonusesEmployee = {
       id: uuidv4(),
       cantidad: cantidadNum,
       salarioPorEmpleado: salarioNum,
-      montoPorEmpleado: montoNum
+      porcentajeML: porcentajeML,
+      montoAL: montoALNum
     }
 
     setEmployees([...employees, newBatch])
     setCantidad('')
     setSalarioPorEmpleado('')
-    setMontoPorEmpleado('')
+    setPorcentajeML(25)
+    setMontoAL('')
   }
 
   const handleRemoveBatch = (id: string) => {
@@ -92,21 +104,23 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
     onContinue(employees)
   }
 
-  const getBatchValidation = (emp: FoodBonusEmployee) => {
-    const porcentajeBono = (emp.montoPorEmpleado / emp.salarioPorEmpleado) * 100
-    const excede40 = porcentajeBono > MAX_BONUS_PERCENTAGE
-    const excedeUVT = emp.montoPorEmpleado > LIMITE_ALIMENTACION_MENSUAL
-    return { porcentajeBono, excede40, excedeUVT }
+  const getBatchValidation = (emp: BothBonusesEmployee) => {
+    const montoML = emp.salarioPorEmpleado * (emp.porcentajeML / 100)
+    const porcentajeTotal = ((montoML + emp.montoAL) / emp.salarioPorEmpleado) * 100
+    const excedeTotal = porcentajeTotal > MAX_TOTAL_BONUS_PERCENTAGE
+    const excedeUVT = emp.montoAL > LIMITE_ALIMENTACION_MENSUAL
+
+    return { porcentajeTotal, excedeTotal, excedeUVT }
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-3">
-          Bonos de Alimentación
+          Bonos de Mera Liberalidad + Alimentación
         </h2>
         <p className="text-gray-600">
-          Agrega los empleados con sus salarios y define el monto del bono de alimentación
+          Agrega empleados con sus salarios y define ambos tipos de bonos
         </p>
         <div className="mt-4 flex flex-col gap-2 items-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -114,7 +128,7 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm text-blue-800">
-              <strong>Límite porcentual:</strong> Bonos ≤ {MAX_BONUS_PERCENTAGE}% del salario
+              <strong>Límite total:</strong> ML + AL ≤ 40% del salario
             </span>
           </div>
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
@@ -122,7 +136,7 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm text-green-800">
-              <strong>Límite monto:</strong> {formatCOP(LIMITE_ALIMENTACION_MENSUAL)} por empleado/mes (41 UVT)
+              <strong>Límite AL:</strong> {formatCOP(LIMITE_ALIMENTACION_MENSUAL)} por empleado/mes (41 UVT)
             </span>
           </div>
         </div>
@@ -134,7 +148,7 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
           Agregar Lote de Empleados
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Cantidad de empleados
@@ -163,40 +177,69 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
               placeholder={formatCOP(3000000)}
             />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              % Bono Mera Liberalidad
+            </label>
+            <div className="space-y-2">
+              <input
+                type="range"
+                min="0"
+                max={MAX_TOTAL_BONUS_PERCENTAGE}
+                step="1"
+                value={porcentajeML}
+                onChange={(e) => setPorcentajeML(parseInt(e.target.value))}
+                className="w-full"
+              />
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">0%</span>
+                <span className="font-semibold text-blue-900">{porcentajeML}%</span>
+                <span className="text-gray-600">40%</span>
+              </div>
+              {salarioNum > 0 && (
+                <p className="text-sm text-gray-600">
+                  Monto ML: {formatCOP(salarioNum * (porcentajeML / 100))}
+                </p>
+              )}
+            </div>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Monto bono alimentación
+              Monto Bono Alimentación
             </label>
             <input
               type="number"
               min="0"
               step="50000"
-              value={montoPorEmpleado}
-              onChange={(e) => setMontoPorEmpleado(e.target.value)}
+              value={montoAL}
+              onChange={(e) => setMontoAL(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-transparent"
               placeholder={formatCOP(500000)}
             />
             {excedeUVT && (
               <p className="text-xs text-orange-600 mt-1">
-                ⚠️ Excede {formatCOP(LIMITE_ALIMENTACION_MENSUAL)}
+                ⚠️ Excede el límite de {formatCOP(LIMITE_ALIMENTACION_MENSUAL)}
               </p>
             )}
           </div>
         </div>
 
-        {/* Indicador de porcentaje */}
-        {salarioNum > 0 && montoNum >= 0 && (
+        {/* Indicador de porcentaje total */}
+        {salarioNum > 0 && montoALNum >= 0 && (
           <div className={`p-4 rounded-lg mb-4 ${excede40Percent ? 'bg-orange-50 border border-orange-200' : 'bg-green-50 border border-green-200'}`}>
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium">Porcentaje del salario:</span>
+              <span className="text-sm font-medium">Porcentaje total de bonos:</span>
               <span className={`text-lg font-bold ${excede40Percent ? 'text-orange-900' : 'text-green-900'}`}>
-                {porcentajeBono.toFixed(1)}% / {MAX_BONUS_PERCENTAGE}%
+                {porcentajeTotal.toFixed(1)}% / 40%
               </span>
             </div>
             {excede40Percent && (
               <p className="text-xs text-orange-800 mt-2">
-                ⚠️ Excede el límite legal del {MAX_BONUS_PERCENTAGE}%
+                ⚠️ Excede el límite legal del 40%
               </p>
             )}
           </div>
@@ -228,13 +271,13 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
                     Salario
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Monto/Emp
+                    % ML
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    % Salario
+                    Monto AL
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Total Lote
+                    Total %
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                     Estado
@@ -248,31 +291,27 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
                 {employees.map((emp) => {
                   const validation = getBatchValidation(emp)
                   return (
-                    <tr key={emp.id} className={validation.excede40 || validation.excedeUVT ? 'bg-orange-50' : ''}>
+                    <tr key={emp.id} className={validation.excedeTotal ? 'bg-orange-50' : ''}>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {emp.cantidad} empleado{emp.cantidad > 1 ? 's' : ''}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {formatCOP(emp.salarioPorEmpleado)}
                       </td>
+                      <td className="px-4 py-3 text-sm text-blue-900 font-medium">
+                        {emp.porcentajeML}%
+                      </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
-                        {formatCOP(emp.montoPorEmpleado)}
+                        {formatCOP(emp.montoAL)}
                         {validation.excedeUVT && <span className="ml-1 text-orange-600">⚠️</span>}
                       </td>
                       <td className="px-4 py-3 text-sm font-medium">
-                        {validation.porcentajeBono.toFixed(1)}%
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                        {formatCOP(emp.cantidad * emp.montoPorEmpleado)}
+                        {validation.porcentajeTotal.toFixed(1)}%
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {validation.excede40 ? (
+                        {validation.excedeTotal ? (
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
                             ⚠️ Excede 40%
-                          </span>
-                        ) : validation.excedeUVT ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
-                            ⚠️ Excede UVT
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-medium">
@@ -299,29 +338,30 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
 
       {/* Resumen */}
       {employees.length > 0 && (
-        <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-6 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <p className="text-sm text-green-700 mb-1">Total empleados</p>
-              <p className="text-2xl font-bold text-green-900">{totalEmpleados}</p>
+              <p className="text-sm text-purple-700 mb-1">Total empleados</p>
+              <p className="text-2xl font-bold text-purple-900">{totalEmpleados}</p>
             </div>
             <div>
-              <p className="text-sm text-green-700 mb-1">Nómina total</p>
-              <p className="text-2xl font-bold text-green-900">{formatCOP(totalNomina)}</p>
+              <p className="text-sm text-purple-700 mb-1">Nómina total</p>
+              <p className="text-2xl font-bold text-purple-900">{formatCOP(totalNomina)}</p>
             </div>
             <div>
-              <p className="text-sm text-green-700 mb-1">Bonos a dispersar</p>
-              <p className="text-2xl font-bold text-green-900">{formatCOP(totalMontoDispersado)}</p>
+              <p className="text-sm text-purple-700 mb-1">Bonos ML</p>
+              <p className="text-2xl font-bold text-purple-900">{formatCOP(totalBonosML)}</p>
+            </div>
+            <div>
+              <p className="text-sm text-purple-700 mb-1">Bonos AL</p>
+              <p className="text-2xl font-bold text-purple-900">{formatCOP(totalBonosAL)}</p>
             </div>
           </div>
 
-          {employees.some(emp => {
-            const val = getBatchValidation(emp)
-            return val.excede40 || val.excedeUVT
-          }) && (
+          {employees.some(emp => getBatchValidation(emp).excedeTotal) && (
             <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
               <p className="text-sm text-orange-800">
-                <strong>⚠️ Advertencia:</strong> Algunos lotes exceden los límites legales (40% del salario o 41 UVT).
+                <strong>⚠️ Advertencia:</strong> Algunos lotes exceden el límite legal del 40%.
                 Los excesos no estarán exentos de parafiscales.
               </p>
             </div>
