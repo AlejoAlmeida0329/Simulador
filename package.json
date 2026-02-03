@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.93.3",
     "@types/node": "^25.1.0",
     "@types/react": "^19.2.10",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.23",
     "jspdf": "^4.0.0",
     "next": "^14.2.35",
@@ -21,6 +22,7 @@
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.9.3",
+    "uuid": "^13.0.0",
     "zod": "^4.3.6"
   }
 }
