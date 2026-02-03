@@ -130,6 +130,22 @@ export default function BonosPage() {
     }))
   }
 
+  const handleNewQuotation = () => {
+    setFlowState({
+      empleados: [],
+      lotes: [],
+      totalEmpleados: 0,
+      pasoActual: 1,
+      salaryPercentage: 70,
+      arlRiskLevel: 'III'
+    })
+  }
+
+  const handleSaveQuotation = () => {
+    // Opcionalmente mostrar un mensaje de confirmación
+    alert('Cotización guardada exitosamente')
+  }
+
   const minSalaryPercentage = 60
   const maxSalaryPercentage = 90
 
@@ -264,6 +280,8 @@ export default function BonosPage() {
               arlRiskLevel={flowState.arlRiskLevel}
               employeeCount={flowState.empleados.length}
               totalPayroll={totalSalary}
+              onNewQuotation={handleNewQuotation}
+              onSaveQuotation={handleSaveQuotation}
             />
 
             <div className="flex gap-4">
