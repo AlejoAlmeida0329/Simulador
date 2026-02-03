@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Header } from '@/components/Header'
-import { Footer } from '@/components/Footer'
 import { BonusTypeSelector } from '@/components/bonuses/BonusTypeSelector'
 import { BonusCompanyDataForm } from '@/components/bonuses/BonusCompanyDataForm'
 import { EmployeeLoader } from '@/components/bonuses/EmployeeLoader'
@@ -38,7 +36,7 @@ export default function BonosPage() {
     lotes: [],
     totalEmpleados: 0,
     pasoActual: 1,
-    salaryPercentage: 70,
+    salaryPercentage: 70, // Starts at 70% (30% bonus)
     arlRiskLevel: 'III'
   })
 
@@ -54,8 +52,15 @@ export default function BonosPage() {
   const savingsData = useMemo(() => {
     if (flowState.empleados.length === 0) return null
 
-    const traditional = calculateTraditionalScenario(flowState.empleados, flowState.arlRiskLevel)
-    const tikin = calculateTikinScenario(flowState.empleados, flowState.salaryPercentage, flowState.arlRiskLevel)
+    // Convert bonus employees to calculation format
+    const calculationEmployees = flowState.empleados.map(emp => ({
+      id: emp.id,
+      salary: emp.salario,
+      name: emp.nombre
+    }))
+
+    const traditional = calculateTraditionalScenario(calculationEmployees, flowState.arlRiskLevel)
+    const tikin = calculateTikinScenario(calculationEmployees, flowState.salaryPercentage, flowState.arlRiskLevel)
     return calculateSavings(traditional, tikin)
   }, [flowState.empleados, flowState.salaryPercentage, flowState.arlRiskLevel])
 
@@ -125,14 +130,11 @@ export default function BonosPage() {
     }))
   }
 
-  const minSalaryPercentage = 70
+  const minSalaryPercentage = 60
   const maxSalaryPercentage = 90
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
-
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-7xl">
+    <div className="space-y-6">
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center">
@@ -274,9 +276,6 @@ export default function BonosPage() {
             </div>
           </div>
         )}
-      </main>
-
-      <Footer />
     </div>
   )
 }
