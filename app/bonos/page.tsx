@@ -69,9 +69,40 @@ export default function BonosPage() {
 
   // Calculate scenarios
   const savingsData = useMemo(() => {
+    if (flowState.tipoSeleccionado === 'ambos' && flowState.bothBonusesEmployees.length > 0) {
+      // Para flujo ambos, necesitamos calcular con % ML variable por lote
+      // Expandir cada lote a empleados individuales para el cálculo
+      const expandedEmployees = flowState.bothBonusesEmployees.flatMap(batch =>
+        Array.from({ length: batch.cantidad }, (_, i) => ({
+          id: `${batch.id}_${i}`,
+          salary: batch.salarioPorEmpleado,
+          name: `Empleado ${i + 1}`
+        }))
+      )
+
+      // Calcular el promedio ponderado del % ML para usar en el cálculo
+      const totalSalary = flowState.bothBonusesEmployees.reduce(
+        (sum, batch) => sum + (batch.cantidad * batch.salarioPorEmpleado),
+        0
+      )
+      const weightedMLPercentage = flowState.bothBonusesEmployees.reduce(
+        (sum, batch) => {
+          const batchSalary = batch.cantidad * batch.salarioPorEmpleado
+          const batchWeight = batchSalary / totalSalary
+          return sum + (batch.porcentajeML * batchWeight)
+        },
+        0
+      )
+      const salaryPercentage = 100 - weightedMLPercentage
+
+      const traditional = calculateTraditionalScenario(expandedEmployees, flowState.arlRiskLevel)
+      const tikin = calculateTikinScenario(expandedEmployees, salaryPercentage, flowState.arlRiskLevel)
+      return calculateSavings(traditional, tikin)
+    }
+
+    // Para flujos individuales ML y AL
     if (flowState.empleados.length === 0) return null
 
-    // Convert bonus employees to calculation format
     const calculationEmployees = flowState.empleados.map(emp => ({
       id: emp.id,
       salary: emp.salario,
@@ -81,7 +112,7 @@ export default function BonosPage() {
     const traditional = calculateTraditionalScenario(calculationEmployees, flowState.arlRiskLevel)
     const tikin = calculateTikinScenario(calculationEmployees, flowState.salaryPercentage, flowState.arlRiskLevel)
     return calculateSavings(traditional, tikin)
-  }, [flowState.empleados, flowState.salaryPercentage, flowState.arlRiskLevel])
+  }, [flowState.empleados, flowState.bothBonusesEmployees, flowState.salaryPercentage, flowState.arlRiskLevel, flowState.tipoSeleccionado])
 
   // Calculate Tikin commission
   const tikinCommission = useMemo(() => {
@@ -101,8 +132,7 @@ export default function BonosPage() {
     setFlowState(prev => ({
       ...prev,
       companyData: data,
-      pasoActual: 3,
-      subPasoAmbos: prev.tipoSeleccionado === 'ambos' ? '3a' : undefined
+      pasoActual: 3
     }))
   }
 
@@ -163,6 +193,7 @@ export default function BonosPage() {
       empleados: [],
       lotes: [],
       foodBonusEmployees: [],
+      bothBonusesEmployees: [],
       totalEmpleados: 0,
       pasoActual: 1,
       salaryPercentage: 70,
@@ -202,6 +233,28 @@ export default function BonosPage() {
 
   // Cálculos para bonos de alimentación
   const foodBonusData = useMemo(() => {
+    if (flowState.tipoSeleccionado === 'ambos' && flowState.bothBonusesEmployees.length > 0) {
+      // Para flujo ambos, calcular desde bothBonusesEmployees
+      const totalEmpleados = flowState.bothBonusesEmployees.reduce((sum, emp) => sum + emp.cantidad, 0)
+      const totalBonos = flowState.bothBonusesEmployees.reduce(
+        (sum, emp) => sum + (emp.cantidad * emp.montoAL),
+        0
+      )
+      const feeAmount = totalBonos * FEE_ALIMENTACION
+      const iva = feeAmount * IVA
+      const totalConFee = totalBonos + feeAmount + iva
+
+      return {
+        totalEmpleados,
+        totalBonos,
+        feePercentage: FEE_ALIMENTACION,
+        feeAmount,
+        iva,
+        totalConFee
+      }
+    }
+
+    // Para flujo alimentación individual
     if (flowState.foodBonusEmployees.length === 0) return null
 
     const totalBonos = flowState.foodBonusEmployees.reduce(
@@ -220,7 +273,7 @@ export default function BonosPage() {
       iva,
       totalConFee
     }
-  }, [flowState.foodBonusEmployees])
+  }, [flowState.foodBonusEmployees, flowState.bothBonusesEmployees, flowState.tipoSeleccionado])
 
   const minSalaryPercentage = 60
   const maxSalaryPercentage = 90
@@ -434,27 +487,19 @@ export default function BonosPage() {
           </div>
         )}
 
-        {/* Flujo Ambos - Paso 4a: Configurar Mera Liberalidad */}
-        {flowState.pasoActual === 4 && isAmbosFlow && flowState.subPasoAmbos === '4a' && (
+        {/* Flujo Ambos - Paso 4: Configurar nivel de riesgo ARL */}
+        {flowState.pasoActual === 4 && isAmbosFlow && (
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                Paso 1 de 2: Configurar Mera Liberalidad
+                Configuración de Riesgo ARL
               </h2>
               <p className="text-gray-600">
-                Define la estructura de compensación (salario base vs bonos) y nivel de riesgo ARL
+                Define el nivel de riesgo ARL de la empresa
               </p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SalaryBonusSlider
-                salaryPercentage={flowState.salaryPercentage}
-                onSalaryPercentageChange={handleSalaryPercentageChange}
-                totalCompensation={totalSalary}
-                minPercentage={minSalaryPercentage}
-                maxPercentage={maxSalaryPercentage}
-              />
-
+            <div className="max-w-2xl mx-auto">
               <ARLRiskSelector
                 selectedLevel={flowState.arlRiskLevel}
                 onLevelChange={handleARLRiskChange}
@@ -467,7 +512,7 @@ export default function BonosPage() {
 
             <div className="flex gap-4">
               <button
-                onClick={() => setFlowState(prev => ({ ...prev, pasoActual: 3, subPasoAmbos: '3b' }))}
+                onClick={() => handleBackToPaso(3)}
                 className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
               >
                 ← Volver
