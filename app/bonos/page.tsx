@@ -1,29 +1,75 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Header } from '@/components/Header'
 import { Footer } from '@/components/Footer'
 import { BonusTypeSelector } from '@/components/bonuses/BonusTypeSelector'
 import { BonusCompanyDataForm } from '@/components/bonuses/BonusCompanyDataForm'
 import { EmployeeLoader } from '@/components/bonuses/EmployeeLoader'
-import { BonusDistribution } from '@/components/bonuses/BonusDistribution'
-import { BonusSummary } from '@/components/bonuses/BonusSummary'
-import { BonusType, BonusFlowState, BonusCompanyData, BonusConfig, Employee, EmployeeBatch } from '@/types/bonuses'
+import { SalaryBonusSlider } from '@/components/SalaryBonusSlider'
+import { ARLRiskSelector } from '@/components/ARLRiskSelector'
+import { ComparisonView } from '@/components/ComparisonView'
+import { SavingsMetrics } from '@/components/SavingsMetrics'
+import { TikinCostCard } from '@/components/TikinCostCard'
+import { DownloadQuotationButton } from '@/components/DownloadQuotationButton'
+import { BonusType, BonusCompanyData, Employee, EmployeeBatch } from '@/types/bonuses'
+import { ARLRiskLevel } from '@/lib/constants/parafiscales'
+import {
+  calculateTraditionalScenario,
+  calculateTikinScenario,
+  calculateSavings,
+} from '@/lib/calculations/scenarios'
+import { calculateTikinCommission } from '@/lib/calculations/tikin-commission'
+
+interface BonusFlowState {
+  tipoSeleccionado?: BonusType
+  companyData?: BonusCompanyData
+  empleados: Employee[]
+  lotes: EmployeeBatch[]
+  totalEmpleados: number
+  pasoActual: number
+  salaryPercentage: number
+  arlRiskLevel: ARLRiskLevel
+}
 
 export default function BonosPage() {
   const [flowState, setFlowState] = useState<BonusFlowState>({
     empleados: [],
     lotes: [],
     totalEmpleados: 0,
-    pasoActual: 1
+    pasoActual: 1,
+    salaryPercentage: 70,
+    arlRiskLevel: 'III'
   })
+
+  // Calculate total salary from employees
+  const totalSalary = useMemo(() => {
+    return flowState.empleados.reduce((sum, emp) => sum + emp.salario, 0)
+  }, [flowState.empleados])
+
+  // Calculate bonus percentage
+  const bonusPercentage = 100 - flowState.salaryPercentage
+
+  // Calculate scenarios
+  const savingsData = useMemo(() => {
+    if (flowState.empleados.length === 0) return null
+
+    const traditional = calculateTraditionalScenario(flowState.empleados, flowState.arlRiskLevel)
+    const tikin = calculateTikinScenario(flowState.empleados, flowState.salaryPercentage, flowState.arlRiskLevel)
+    return calculateSavings(traditional, tikin)
+  }, [flowState.empleados, flowState.salaryPercentage, flowState.arlRiskLevel])
+
+  // Calculate Tikin commission
+  const tikinCommission = useMemo(() => {
+    if (!savingsData) return null
+    return calculateTikinCommission(savingsData.tikin.totalBonusAmount)
+  }, [savingsData])
 
   const handleTipoSeleccionado = (tipo: BonusType) => {
     setFlowState(prev => ({
       ...prev,
       tipoSeleccionado: tipo,
-      pasoActual: 2,
-      tabActivo: tipo === 'ambos' ? 'mera_liberalidad' : undefined
+      pasoActual: 2
     }))
   }
 
@@ -58,24 +104,29 @@ export default function BonosPage() {
     }))
   }
 
-  const handleConfigsComplete = (configML?: BonusConfig, configAL?: BonusConfig) => {
+  const handleSalaryPercentageChange = (percentage: number) => {
     setFlowState(prev => ({
       ...prev,
-      configMeraLiberalidad: configML,
-      configAlimentacion: configAL,
+      salaryPercentage: percentage
+    }))
+  }
+
+  const handleARLRiskChange = (level: ARLRiskLevel) => {
+    setFlowState(prev => ({
+      ...prev,
+      arlRiskLevel: level
+    }))
+  }
+
+  const handleContinueToSummary = () => {
+    setFlowState(prev => ({
+      ...prev,
       pasoActual: 5
     }))
   }
 
-  const handleConfirmDispersion = () => {
-    // TODO: Implement dispersion confirmation
-    // This could:
-    // - Generate PDF proposal
-    // - Send to backend API
-    // - Show success modal
-    // - Redirect to confirmation page
-    alert('¡Dispersión confirmada! Próximamente se implementará la generación de propuesta y envío.')
-  }
+  const minSalaryPercentage = 70
+  const maxSalaryPercentage = 90
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -142,27 +193,86 @@ export default function BonosPage() {
           />
         )}
 
-        {flowState.pasoActual === 4 && flowState.tipoSeleccionado && (
-          <BonusDistribution
-            empleados={flowState.empleados}
-            tipoSeleccionado={flowState.tipoSeleccionado}
-            onConfigsComplete={handleConfigsComplete}
-            onBack={() => handleBackToPaso(3)}
-            initialConfigML={flowState.configMeraLiberalidad}
-            initialConfigAL={flowState.configAlimentacion}
-          />
+        {flowState.pasoActual === 4 && (
+          <div className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Configuración del Bono
+              </h2>
+              <p className="text-gray-600">
+                Define la estructura de compensación (salario base vs bonos) y nivel de riesgo ARL
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SalaryBonusSlider
+                salaryPercentage={flowState.salaryPercentage}
+                onSalaryPercentageChange={handleSalaryPercentageChange}
+                totalCompensation={totalSalary}
+                minPercentage={minSalaryPercentage}
+                maxPercentage={maxSalaryPercentage}
+              />
+
+              <ARLRiskSelector
+                selectedLevel={flowState.arlRiskLevel}
+                onLevelChange={handleARLRiskChange}
+              />
+            </div>
+
+            {savingsData && (
+              <ComparisonView savingsData={savingsData} arlRiskLevel={flowState.arlRiskLevel} />
+            )}
+
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={() => handleBackToPaso(3)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                ← Volver
+              </button>
+              <button
+                onClick={handleContinueToSummary}
+                className="flex-1 px-6 py-3 bg-tikin-red text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
+              >
+                Continuar →
+              </button>
+            </div>
+          </div>
         )}
 
-        {flowState.pasoActual === 5 && flowState.tipoSeleccionado && flowState.companyData && (
-          <BonusSummary
-            tipoSeleccionado={flowState.tipoSeleccionado}
-            companyData={flowState.companyData}
-            empleados={flowState.empleados}
-            configMeraLiberalidad={flowState.configMeraLiberalidad}
-            configAlimentacion={flowState.configAlimentacion}
-            onBack={() => handleBackToPaso(4)}
-            onConfirm={handleConfirmDispersion}
-          />
+        {flowState.pasoActual === 5 && savingsData && tikinCommission && flowState.companyData && (
+          <div className="space-y-6">
+            <div className="text-center mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 mb-3">
+                Resumen de Ahorro
+              </h2>
+              <p className="text-gray-600">
+                Revisa el ahorro en parafiscales y confirma tu propuesta
+              </p>
+            </div>
+
+            <SavingsMetrics savingsData={savingsData} />
+
+            <TikinCostCard commission={tikinCommission} />
+
+            <DownloadQuotationButton
+              companyData={flowState.companyData}
+              savingsData={savingsData}
+              tikinCommission={tikinCommission}
+              arlRiskLevel={flowState.arlRiskLevel}
+              employeeCount={flowState.empleados.length}
+              totalPayroll={totalSalary}
+            />
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => handleBackToPaso(4)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+              >
+                ← Volver
+              </button>
+            </div>
+          </div>
         )}
       </main>
 
