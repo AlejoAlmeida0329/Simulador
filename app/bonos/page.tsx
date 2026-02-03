@@ -496,35 +496,12 @@ export default function BonosPage() {
                 ← Volver
               </button>
               <button
-                onClick={() => setFlowState(prev => ({ ...prev, subPasoAmbos: '4b' }))}
+                onClick={() => setFlowState(prev => ({ ...prev, pasoActual: 5 }))}
                 className="flex-1 px-6 py-3 bg-tikin-red text-white rounded-lg hover:bg-red-700 font-medium transition-colors"
               >
                 Continuar →
               </button>
             </div>
-          </div>
-        )}
-
-        {/* Flujo Ambos - Paso 4b: Configurar Alimentación */}
-        {flowState.pasoActual === 4 && isAmbosFlow && flowState.subPasoAmbos === '4b' && (
-          <div className="space-y-6">
-            <div className="text-center mb-6">
-              <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                Paso 2 de 2: Configurar Alimentación
-              </h2>
-              <p className="text-gray-600">
-                Define la distribución de bonos de alimentación (límite: 41 UVT por empleado)
-              </p>
-            </div>
-            <BonusDistribution
-              empleados={flowState.empleados}
-              tipoSeleccionado="alimentacion"
-              onConfigsComplete={(_, configAL) => {
-                if (configAL) handleALConfigComplete(configAL)
-              }}
-              onBack={() => setFlowState(prev => ({ ...prev, subPasoAmbos: '4a' }))}
-              initialConfigAL={flowState.configAlimentacion}
-            />
           </div>
         )}
 
@@ -660,7 +637,7 @@ export default function BonosPage() {
         )}
 
         {/* Flujo Ambos - Paso 5: Resumen consolidado de ambos tipos de bonos */}
-        {flowState.pasoActual === 5 && isAmbosFlow && savingsData && tikinCommission && flowState.configAlimentacion && flowState.companyData && (
+        {flowState.pasoActual === 5 && isAmbosFlow && savingsData && tikinCommission && foodBonusData && flowState.companyData && (
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold text-gray-900 mb-3">
@@ -705,29 +682,28 @@ export default function BonosPage() {
               <h3 className="text-xl font-bold text-green-900 mb-4">Bonos de Alimentación</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                  <p className="text-sm text-green-700 mb-1">Total empleados</p>
+                  <p className="text-2xl font-bold text-green-900">{foodBonusData.totalEmpleados}</p>
+                </div>
+                <div>
                   <p className="text-sm text-green-700 mb-1">Total en bonos</p>
-                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.montoTotal)}</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.totalBonos)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-green-700 mb-1">Fee (1.25%)</p>
-                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.feeAmount)}</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.feeAmount)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-green-700 mb-1">IVA (19%)</p>
-                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.iva)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-green-700 mb-1">Total con fee</p>
-                  <p className="text-2xl font-bold text-green-900">{formatCOP(flowState.configAlimentacion.totalConFee)}</p>
+                  <p className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.iva)}</p>
                 </div>
               </div>
-              {!flowState.configAlimentacion.validado && (
-                <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                  <p className="text-sm text-orange-800">
-                    <strong>⚠️ Advertencia:</strong> {flowState.configAlimentacion.empleadosExcedenLimite} empleado(s) exceden el límite legal.
-                  </p>
+              <div className="mt-4 pt-4 border-t border-green-300">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-green-700">Total con fee:</span>
+                  <span className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.totalConFee)}</span>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Total Consolidado */}
@@ -735,7 +711,7 @@ export default function BonosPage() {
               <div className="text-center">
                 <p className="text-sm text-purple-700 mb-2">Total General Mensual</p>
                 <p className="text-4xl font-bold text-purple-900">
-                  {formatCOP((savingsData.tikin.totalBonusAmount + tikinCommission.total) + flowState.configAlimentacion.totalConFee)}
+                  {formatCOP((savingsData.tikin.totalBonusAmount + tikinCommission.total) + foodBonusData.totalConFee)}
                 </p>
                 <p className="text-sm text-purple-600 mt-2">
                   Bonos de ambos tipos + costos Tikin
