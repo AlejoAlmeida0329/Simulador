@@ -7,6 +7,9 @@ export interface ScenarioResult {
   totalSalaryBase: number
   totalBonusAmount: number
   parafiscales: ParafiscalesBreakdown
+  // Optional breakdown for "ambos bonos" flow
+  mlBonusAmount?: number
+  alBonusAmount?: number
 }
 
 export interface SavingsResult {

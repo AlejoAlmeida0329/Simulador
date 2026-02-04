@@ -4,8 +4,11 @@ import { useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { formatCOP } from '@/lib/formatters'
 import { LIMITE_ALIMENTACION_MENSUAL } from '@/types/bonuses'
+import { downloadFoodBonusTemplate } from '@/lib/excel/foodBonusTemplate'
+import { parseFoodBonusExcel, validateFoodBonusExcelFile } from '@/lib/excel/foodBonusParser'
 
 const MAX_BONUS_PERCENTAGE = 40 // Bonos no pueden superar 40% del salario
+const MIN_SALARY = 2450000 // Salario mínimo legal 2024
 
 export interface FoodBonusEmployee {
   id: string
@@ -26,6 +29,11 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
   const [salarioPorEmpleado, setSalarioPorEmpleado] = useState<string>('')
   const [montoPorEmpleado, setMontoPorEmpleado] = useState<string>('')
 
+  // Estados para carga de archivo Excel
+  const [fileError, setFileError] = useState<string>('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
+
   const totalEmpleados = employees.reduce((sum, emp) => sum + emp.cantidad, 0)
   const totalNomina = employees.reduce((sum, emp) => sum + (emp.cantidad * emp.salarioPorEmpleado), 0)
   const totalMontoDispersado = employees.reduce((sum, emp) => sum + (emp.cantidad * emp.montoPorEmpleado), 0)
@@ -36,6 +44,7 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
   const porcentajeBono = salarioNum > 0 ? (montoNum / salarioNum) * 100 : 0
   const excede40Percent = porcentajeBono > MAX_BONUS_PERCENTAGE
   const excedeUVT = montoNum > LIMITE_ALIMENTACION_MENSUAL
+  const salarioBajoMinimo = salarioNum > 0 && salarioNum < MIN_SALARY
 
   const handleAddBatch = () => {
     const cantidadNum = parseInt(cantidad)
@@ -49,6 +58,11 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
 
     if (!salarioNum || salarioNum <= 0) {
       alert('Ingresa un salario válido por empleado')
+      return
+    }
+
+    if (salarioNum < MIN_SALARY) {
+      alert(`❌ El salario no puede ser inferior al salario mínimo legal de ${formatCOP(MIN_SALARY)}`)
       return
     }
 
@@ -92,11 +106,49 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
     onContinue(employees)
   }
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setFileError('')
+    setUploadSuccess(false)
+    setUploading(true)
+
+    // Validar archivo
+    const validation = validateFoodBonusExcelFile(file)
+    if (!validation.valid) {
+      setFileError(validation.error!)
+      setUploading(false)
+      e.target.value = ''
+      return
+    }
+
+    // Parsear archivo
+    const result = await parseFoodBonusExcel(file)
+
+    if (!result.success || !result.batches) {
+      setFileError(result.errors?.join(', ') || 'Error al procesar el archivo')
+      setUploading(false)
+      e.target.value = ''
+      return
+    }
+
+    // Agregar lotes parseados
+    setEmployees([...employees, ...result.batches])
+    setUploadSuccess(true)
+    setUploading(false)
+    e.target.value = ''
+
+    // Limpiar mensaje de éxito después de 3 segundos
+    setTimeout(() => setUploadSuccess(false), 3000)
+  }
+
   const getBatchValidation = (emp: FoodBonusEmployee) => {
     const porcentajeBono = (emp.montoPorEmpleado / emp.salarioPorEmpleado) * 100
     const excede40 = porcentajeBono > MAX_BONUS_PERCENTAGE
     const excedeUVT = emp.montoPorEmpleado > LIMITE_ALIMENTACION_MENSUAL
-    return { porcentajeBono, excede40, excedeUVT }
+    const salarioBajoMinimo = emp.salarioPorEmpleado < MIN_SALARY
+    return { porcentajeBono, excede40, excedeUVT, salarioBajoMinimo }
   }
 
   return (
@@ -126,6 +178,86 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
             </span>
           </div>
         </div>
+      </div>
+
+      {/* Carga de archivo Excel */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Carga Masiva de Lotes
+        </h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Descarga la plantilla Excel, complétala con tus lotes de empleados y súbela aquí
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Botón de descarga */}
+          <div>
+            <button
+              onClick={downloadFoodBonusTemplate}
+              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Descargar Plantilla Excel
+            </button>
+          </div>
+
+          {/* Botón de subida */}
+          <div>
+            <input
+              id="food-bonus-file-upload"
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+            <label
+              htmlFor="food-bonus-file-upload"
+              className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3 ${
+                uploading
+                  ? 'bg-gray-400 cursor-wait'
+                  : 'bg-tikin-red hover:bg-red-700 cursor-pointer'
+              } text-white rounded-lg font-medium transition-colors`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              {uploading ? 'Procesando...' : 'Subir Archivo Completado'}
+            </label>
+          </div>
+        </div>
+
+        {/* Mensaje de error */}
+        {fileError && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-red-800">Error al procesar el archivo</p>
+                <p className="text-sm text-red-700 mt-1">{fileError}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Mensaje de éxito */}
+        {uploadSuccess && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-start gap-2">
+              <svg className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-green-800">Archivo procesado exitosamente</p>
+                <p className="text-sm text-green-700 mt-1">Los lotes se han agregado a la lista</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Formulario para agregar lotes */}
@@ -162,6 +294,11 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-transparent"
               placeholder={formatCOP(3000000)}
             />
+            {salarioBajoMinimo && (
+              <p className="text-xs text-red-600 mt-1">
+                ❌ Mínimo: {formatCOP(MIN_SALARY)}
+              </p>
+            )}
           </div>
 
           <div>
@@ -248,12 +385,13 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
                 {employees.map((emp) => {
                   const validation = getBatchValidation(emp)
                   return (
-                    <tr key={emp.id} className={validation.excede40 || validation.excedeUVT ? 'bg-orange-50' : ''}>
+                    <tr key={emp.id} className={validation.salarioBajoMinimo ? 'bg-red-50' : (validation.excede40 || validation.excedeUVT ? 'bg-orange-50' : '')}>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {emp.cantidad} empleado{emp.cantidad > 1 ? 's' : ''}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {formatCOP(emp.salarioPorEmpleado)}
+                        {validation.salarioBajoMinimo && <span className="ml-1 text-red-600">❌</span>}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-900">
                         {formatCOP(emp.montoPorEmpleado)}
@@ -266,7 +404,11 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
                         {formatCOP(emp.cantidad * emp.montoPorEmpleado)}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        {validation.excede40 ? (
+                        {validation.salarioBajoMinimo ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-medium">
+                            ❌ Bajo mínimo
+                          </span>
+                        ) : validation.excede40 ? (
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-medium">
                             ⚠️ Excede 40%
                           </span>
@@ -317,6 +459,18 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
 
           {employees.some(emp => {
             const val = getBatchValidation(emp)
+            return val.salarioBajoMinimo
+          }) && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-300 rounded-lg">
+              <p className="text-sm text-red-900">
+                <strong>❌ Error crítico:</strong> Algunos lotes tienen salarios por debajo del mínimo legal ({formatCOP(MIN_SALARY)}).
+                Debes eliminarlos o ajustar el salario antes de continuar.
+              </p>
+            </div>
+          )}
+
+          {employees.some(emp => {
+            const val = getBatchValidation(emp)
             return val.excede40 || val.excedeUVT
           }) && (
             <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
@@ -339,7 +493,7 @@ export function FoodBonusLoader({ onContinue, onBack, initialEmployees = [] }: F
         </button>
         <button
           onClick={handleContinue}
-          disabled={employees.length === 0}
+          disabled={employees.length === 0 || employees.some(emp => getBatchValidation(emp).salarioBajoMinimo)}
           className="flex-1 px-6 py-3 bg-tikin-red text-white rounded-lg hover:bg-red-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continuar →

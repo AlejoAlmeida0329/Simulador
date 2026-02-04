@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { Employee, EmployeeBatch } from '@/types/bonuses'
 import { formatCOP } from '@/lib/formatters'
 import { v4 as uuidv4 } from 'uuid'
+import { downloadEmployeeTemplate } from '@/lib/excel/template'
+import { parseEmployeeExcel, validateExcelFile } from '@/lib/excel/parser'
 
 interface EmployeeLoaderProps {
   empleados: Employee[]
@@ -26,6 +28,11 @@ export function EmployeeLoader({
   const [cantidad, setCantidad] = useState<string>('')
   const [salarioPorEmpleado, setSalarioPorEmpleado] = useState<string>('')
   const [batchError, setBatchError] = useState<string>('')
+
+  // File upload state
+  const [fileError, setFileError] = useState<string>('')
+  const [uploading, setUploading] = useState(false)
+  const [uploadSuccess, setUploadSuccess] = useState(false)
 
   const MIN_SALARY = 2450000
 
@@ -124,12 +131,43 @@ export function EmployeeLoader({
     }
   }
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // TODO: Implement CSV/Excel parsing
-    alert('Funcionalidad de carga de archivo próximamente...')
+    setFileError('')
+    setUploadSuccess(false)
+    setUploading(true)
+
+    // Validar archivo
+    const validation = validateExcelFile(file)
+    if (!validation.valid) {
+      setFileError(validation.error!)
+      setUploading(false)
+      e.target.value = '' // Reset input
+      return
+    }
+
+    // Parsear archivo
+    const result = await parseEmployeeExcel(file)
+
+    if (!result.success || !result.employees) {
+      setFileError(result.errors?.join(', ') || 'Error al procesar el archivo')
+      setUploading(false)
+      e.target.value = '' // Reset input
+      return
+    }
+
+    // Agregar empleados al estado
+    onEmpleadosChange([...empleados, ...result.employees], lotes)
+    setUploadSuccess(true)
+    setUploading(false)
+
+    // Reset input
+    e.target.value = ''
+
+    // Clear success message after 3 seconds
+    setTimeout(() => setUploadSuccess(false), 3000)
   }
 
   const canContinue = totalEmpleados > 0
@@ -236,32 +274,86 @@ export function EmployeeLoader({
               Cargar Archivo de Empleados
             </h3>
             <p className="text-sm text-gray-600 mb-6">
-              Sube un archivo CSV o Excel con la información de tus empleados
+              Descarga la plantilla, llénala con tu información y súbela aquí
             </p>
 
-            <input
-              type="file"
-              accept=".csv,.xlsx,.xls"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="file-upload"
-            />
-            <label
-              htmlFor="file-upload"
-              className="inline-block px-6 py-3 bg-tikin-red text-white rounded-lg hover:bg-red-700 font-medium transition-colors cursor-pointer"
-            >
-              Seleccionar Archivo
-            </label>
-
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-xs text-gray-600 mb-2">
-                <strong>Formato esperado:</strong>
+            {/* Download Template Button */}
+            <div className="mb-6">
+              <button
+                onClick={downloadEmployeeTemplate}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Descargar Plantilla Excel
+              </button>
+              <p className="text-xs text-gray-500 mt-2">
+                Plantilla con formato e instrucciones incluidas
               </p>
-              <div className="bg-gray-50 p-3 rounded text-xs text-left font-mono">
-                nombre, cedula, cargo, salario<br />
-                Juan Pérez, 1234567890, Desarrollador, 3000000<br />
-                María García, 9876543210, Diseñadora, 3500000
+            </div>
+
+            {/* File Upload */}
+            <div className="mb-6">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload"
+                disabled={uploading}
+              />
+              <label
+                htmlFor="file-upload"
+                className={`inline-block px-6 py-3 rounded-lg font-medium transition-colors cursor-pointer ${
+                  uploading
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-tikin-red text-white hover:bg-red-700'
+                }`}
+              >
+                {uploading ? 'Procesando...' : 'Subir Archivo Completado'}
+              </label>
+            </div>
+
+            {/* Success Message */}
+            {uploadSuccess && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                <p className="text-sm text-green-700 font-medium">
+                  ✓ Archivo cargado exitosamente
+                </p>
               </div>
+            )}
+
+            {/* Error Message */}
+            {fileError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-700">{fileError}</p>
+              </div>
+            )}
+
+            {/* Instructions */}
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-gray-600 mb-3">
+                <strong>Instrucciones:</strong>
+              </p>
+              <ol className="text-xs text-left text-gray-600 space-y-2 max-w-md mx-auto">
+                <li className="flex gap-2">
+                  <span className="font-bold">1.</span>
+                  <span>Descarga la plantilla Excel haciendo clic en el botón verde</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold">2.</span>
+                  <span>Abre el archivo y lee las instrucciones en la primera hoja</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold">3.</span>
+                  <span>Completa la información de tus empleados en la hoja "Empleados"</span>
+                </li>
+                <li className="flex gap-2">
+                  <span className="font-bold">4.</span>
+                  <span>Guarda el archivo y súbelo usando el botón "Subir Archivo Completado"</span>
+                </li>
+              </ol>
             </div>
           </div>
         </div>

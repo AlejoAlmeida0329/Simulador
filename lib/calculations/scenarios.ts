@@ -10,7 +10,7 @@ export function calculateTraditionalScenario(
   employees: Employee[],
   arlRiskLevel: ARLRiskLevel
 ): ScenarioResult {
-  const totalCompensation = employees.reduce((sum, emp) => sum + emp.salary, 0)
+  const totalCompensation = employees.reduce((sum, emp) => sum + emp.salario, 0)
 
   const parafiscales = calculateAggregateParafiscales(
     employees,
@@ -36,7 +36,7 @@ export function calculateTikinScenario(
   salaryPercentage: number,
   arlRiskLevel: ARLRiskLevel
 ): ScenarioResult {
-  const totalCompensation = employees.reduce((sum, emp) => sum + emp.salary, 0)
+  const totalCompensation = employees.reduce((sum, emp) => sum + emp.salario, 0)
   const bonusPercentage = 100 - salaryPercentage
 
   const totalSalaryBase = (totalCompensation * salaryPercentage) / 100

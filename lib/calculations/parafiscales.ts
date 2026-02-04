@@ -84,7 +84,7 @@ export function calculateTotalParafiscales(
  * Calculate aggregate parafiscales for multiple employees
  */
 export function calculateAggregateParafiscales(
-  employees: Array<{ id: string; salary: number }>,
+  employees: Array<{ id: string; salario: number }>,
   salaryPercentage: number,
   riskLevel: ARLRiskLevel
 ): ParafiscalesBreakdown {
@@ -97,7 +97,7 @@ export function calculateAggregateParafiscales(
 
   employees.forEach((employee) => {
     // Calculate salary base (salary percentage of total compensation)
-    const salaryBase = employee.salary * (salaryPercentage / 100)
+    const salaryBase = employee.salario * (salaryPercentage / 100)
 
     totalHealth += calculateHealth(salaryBase)
     totalPension += calculatePension(salaryBase)

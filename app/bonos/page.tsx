@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { DisclaimerModal } from '@/components/DisclaimerModal'
+import { LegalFooter } from '@/components/LegalFooter'
 import { BonusTypeSelector } from '@/components/bonuses/BonusTypeSelector'
 import { BonusCompanyDataForm } from '@/components/bonuses/BonusCompanyDataForm'
 import { EmployeeLoader } from '@/components/bonuses/EmployeeLoader'
@@ -40,6 +42,7 @@ interface BonusFlowState {
 }
 
 export default function BonosPage() {
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
   const [flowState, setFlowState] = useState<BonusFlowState>({
     empleados: [],
     lotes: [],
@@ -75,8 +78,9 @@ export default function BonosPage() {
       const expandedEmployees = flowState.bothBonusesEmployees.flatMap(batch =>
         Array.from({ length: batch.cantidad }, (_, i) => ({
           id: `${batch.id}_${i}`,
-          salary: batch.salarioPorEmpleado,
-          name: `Empleado ${i + 1}`
+          salario: batch.salarioPorEmpleado,
+          nombre: `Empleado ${i + 1}`,
+          origen: 'manual' as const
         }))
       )
 
@@ -95,29 +99,56 @@ export default function BonosPage() {
       )
       const salaryPercentage = 100 - weightedMLPercentage
 
+      // Calcular el total de bonos de alimentación
+      const totalALBonuses = flowState.bothBonusesEmployees.reduce(
+        (sum, batch) => sum + (batch.cantidad * batch.montoAL),
+        0
+      )
+
       const traditional = calculateTraditionalScenario(expandedEmployees, flowState.arlRiskLevel)
       const tikin = calculateTikinScenario(expandedEmployees, salaryPercentage, flowState.arlRiskLevel)
-      return calculateSavings(traditional, tikin)
+
+      // Calcular compensación total incluyendo ambos tipos de bonos
+      const totalCompensation = tikin.totalSalaryBase + tikin.totalBonusAmount + totalALBonuses
+      const calculatedSalaryPercentage = totalCompensation > 0
+        ? (tikin.totalSalaryBase / totalCompensation) * 100
+        : 100
+      const calculatedBonusPercentage = totalCompensation > 0
+        ? ((tikin.totalBonusAmount + totalALBonuses) / totalCompensation) * 100
+        : 0
+
+      // Añadir los bonos de alimentación al escenario Tikin con desglose
+      const tikinWithAL = {
+        ...tikin,
+        salaryPercentage: calculatedSalaryPercentage,
+        bonusPercentage: calculatedBonusPercentage,
+        totalBonusAmount: tikin.totalBonusAmount + totalALBonuses,
+        mlBonusAmount: tikin.totalBonusAmount,
+        alBonusAmount: totalALBonuses
+      }
+
+      return calculateSavings(traditional, tikinWithAL)
     }
 
     // Para flujos individuales ML y AL
     if (flowState.empleados.length === 0) return null
 
-    const calculationEmployees = flowState.empleados.map(emp => ({
-      id: emp.id,
-      salary: emp.salario,
-      name: emp.nombre
-    }))
+    const calculationEmployees = flowState.empleados
 
     const traditional = calculateTraditionalScenario(calculationEmployees, flowState.arlRiskLevel)
     const tikin = calculateTikinScenario(calculationEmployees, flowState.salaryPercentage, flowState.arlRiskLevel)
     return calculateSavings(traditional, tikin)
   }, [flowState.empleados, flowState.bothBonusesEmployees, flowState.salaryPercentage, flowState.arlRiskLevel, flowState.tipoSeleccionado])
 
-  // Calculate Tikin commission
+  // Calculate Tikin commission (solo sobre bonos ML, no AL)
   const tikinCommission = useMemo(() => {
     if (!savingsData) return null
-    return calculateTikinCommission(savingsData.tikin.totalBonusAmount)
+    // Para flujo "ambos", usar mlBonusAmount (solo ML)
+    // Para otros flujos, usar totalBonusAmount
+    const bonusAmountForCommission = savingsData.tikin.mlBonusAmount !== undefined
+      ? savingsData.tikin.mlBonusAmount
+      : savingsData.tikin.totalBonusAmount
+    return calculateTikinCommission(bonusAmountForCommission)
   }, [savingsData])
 
   const handleTipoSeleccionado = (tipo: BonusType) => {
@@ -275,6 +306,74 @@ export default function BonosPage() {
     }
   }, [flowState.foodBonusEmployees, flowState.bothBonusesEmployees, flowState.tipoSeleccionado])
 
+  // Calculate savings for food bonus flow
+  const savingsDataFood = useMemo(() => {
+    if (flowState.tipoSeleccionado !== 'alimentacion' || flowState.foodBonusEmployees.length === 0) {
+      return null
+    }
+
+    // Expandir empleados para cálculos (cada lote en empleados individuales)
+    const traditionalEmployees: Employee[] = []
+    const tikinEmployees: Employee[] = []
+
+    flowState.foodBonusEmployees.forEach(batch => {
+      for (let i = 0; i < batch.cantidad; i++) {
+        // En el escenario tradicional, todo sería salario
+        const totalCompensation = batch.salarioPorEmpleado + batch.montoPorEmpleado
+        traditionalEmployees.push({
+          id: `trad-${batch.id}-${i}`,
+          nombre: `Empleado ${i + 1}`,
+          salario: totalCompensation,
+          origen: 'manual' as const
+        })
+
+        // En el escenario Tikin, solo el salario base
+        tikinEmployees.push({
+          id: `tikin-${batch.id}-${i}`,
+          nombre: `Empleado ${i + 1}`,
+          salario: batch.salarioPorEmpleado,
+          origen: 'manual' as const
+        })
+      }
+    })
+
+    // Escenario tradicional: todo como salario
+    const traditional = calculateTraditionalScenario(traditionalEmployees, flowState.arlRiskLevel)
+
+    // Escenario Tikin: solo salario base (sin bonos de alimentación)
+    // Usamos calculateTraditionalScenario porque queremos parafiscales sobre salario base
+    const tikinBase = calculateTraditionalScenario(tikinEmployees, flowState.arlRiskLevel)
+
+    // Agregar información de los bonos al escenario Tikin
+    const totalBonusAmount = flowState.foodBonusEmployees.reduce(
+      (sum, batch) => sum + (batch.cantidad * batch.montoPorEmpleado),
+      0
+    )
+
+    const totalSalaryBase = tikinEmployees.reduce((sum, emp) => sum + emp.salario, 0)
+
+    // Calcular porcentajes basados en compensación total
+    const totalCompensation = totalSalaryBase + totalBonusAmount
+    const calculatedSalaryPercentage = totalCompensation > 0
+      ? (totalSalaryBase / totalCompensation) * 100
+      : 100
+    const calculatedBonusPercentage = totalCompensation > 0
+      ? (totalBonusAmount / totalCompensation) * 100
+      : 0
+
+    // Crear escenario Tikin con la estructura correcta
+    const tikin = {
+      label: 'Escenario Tikin',
+      salaryPercentage: calculatedSalaryPercentage,
+      bonusPercentage: calculatedBonusPercentage,
+      totalSalaryBase: totalSalaryBase,
+      totalBonusAmount: totalBonusAmount,
+      parafiscales: tikinBase.parafiscales
+    }
+
+    return calculateSavings(traditional, tikin)
+  }, [flowState.foodBonusEmployees, flowState.arlRiskLevel, flowState.tipoSeleccionado])
+
   const minSalaryPercentage = 60
   const maxSalaryPercentage = 90
 
@@ -284,44 +383,80 @@ export default function BonosPage() {
   const isAmbosFlow = flowState.tipoSeleccionado === 'ambos'
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="text-center mb-12 animate-fade-in">
+          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+            <span className="text-tikin-red">Cotizador Tikin</span>
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Estima la optimización potencial de tus costos laborales con bonos flexibles
+          </p>
+        </div>
+
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center">
-            {[1, 2, 3, 4, 5].map((step, index) => (
-              <div key={step} className="flex items-center">
-                <div
-                  className={`flex items-center justify-center w-10 h-10 rounded-full border-2 font-semibold ${
-                    step === flowState.pasoActual
-                      ? 'bg-tikin-red text-white border-tikin-red'
-                      : step < flowState.pasoActual
-                      ? 'bg-green-500 text-white border-green-500'
-                      : 'bg-white text-gray-400 border-gray-300'
-                  }`}
-                >
-                  {step < flowState.pasoActual ? '✓' : step}
+        <div className="mb-12">
+          <div className="flex items-center justify-center max-w-4xl mx-auto">
+            {[
+              { num: 1, label: 'Tipo de Bono', desc: 'Selecciona el tipo' },
+              { num: 2, label: 'Empresa', desc: 'Datos básicos' },
+              { num: 3, label: 'Empleados', desc: 'Carga tu nómina' },
+              { num: 4, label: 'Distribución', desc: 'Configura bonos' },
+              { num: 5, label: 'Resumen', desc: 'Revisa y descarga' }
+            ].map((step, index) => (
+              <div key={step.num} className="flex items-center flex-1">
+                <div className="flex flex-col items-center flex-1">
+                  <div
+                    className={`relative flex items-center justify-center w-12 h-12 rounded-full border-2 font-semibold transition-all duration-300 ${
+                      step.num === flowState.pasoActual
+                        ? 'bg-tikin-red text-white border-tikin-red shadow-lg shadow-red-200 scale-110'
+                        : step.num < flowState.pasoActual
+                        ? 'bg-green-500 text-white border-green-500 shadow-md'
+                        : 'bg-white text-gray-400 border-gray-300'
+                    }`}
+                  >
+                    {step.num < flowState.pasoActual ? (
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      step.num
+                    )}
+                    {step.num === flowState.pasoActual && (
+                      <span className="absolute -inset-1 rounded-full bg-tikin-red opacity-20 animate-ping"></span>
+                    )}
+                  </div>
+                  <div className="mt-3 text-center">
+                    <div className={`text-sm font-semibold transition-colors ${
+                      step.num === flowState.pasoActual ? 'text-tikin-red' :
+                      step.num < flowState.pasoActual ? 'text-green-600' : 'text-gray-500'
+                    }`}>
+                      {step.label}
+                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5 hidden sm:block">{step.desc}</div>
+                  </div>
                 </div>
                 {index < 4 && (
-                  <div
-                    className={`h-1 w-16 mx-2 ${
-                      step < flowState.pasoActual ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
-                  />
+                  <div className="flex-1 h-0.5 mx-2 relative" style={{ maxWidth: '100px' }}>
+                    <div className="absolute inset-0 bg-gray-300"></div>
+                    <div
+                      className={`absolute inset-0 transition-all duration-500 ${
+                        step.num < flowState.pasoActual ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                      style={{
+                        width: step.num < flowState.pasoActual ? '100%' : '0%'
+                      }}
+                    ></div>
+                  </div>
                 )}
               </div>
             ))}
           </div>
-          <div className="flex justify-center mt-3 text-sm text-gray-600">
-            <span className="font-medium">
-              {flowState.pasoActual === 1 && 'Tipo de Bono'}
-              {flowState.pasoActual === 2 && 'Información de Empresa'}
-              {flowState.pasoActual === 3 && 'Agregar Empleados'}
-              {flowState.pasoActual === 4 && 'Distribución'}
-              {flowState.pasoActual === 5 && 'Resumen y Confirmación'}
-            </span>
-          </div>
         </div>
 
+        {/* Content Container */}
+        <div className="animate-slide-up">
         {/* Paso Actual */}
         {flowState.pasoActual === 1 && (
           <BonusTypeSelector onSelect={handleTipoSeleccionado} />
@@ -422,12 +557,23 @@ export default function BonosPage() {
           <div className="space-y-6">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                Resumen de Bonos de Alimentación
+                Configuración y Comparativa
               </h2>
               <p className="text-gray-600">
-                Revisa el resumen y los costos del servicio
+                Configura el nivel de riesgo ARL y revisa el ahorro en parafiscales
               </p>
             </div>
+
+            <div className="max-w-2xl mx-auto">
+              <ARLRiskSelector
+                selectedLevel={flowState.arlRiskLevel}
+                onLevelChange={handleARLRiskChange}
+              />
+            </div>
+
+            {savingsDataFood && (
+              <ComparisonView savingsData={savingsDataFood} arlRiskLevel={flowState.arlRiskLevel} />
+            )}
 
             {/* Resumen de empleados y bonos */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -670,60 +816,79 @@ export default function BonosPage() {
               </p>
             </div>
 
-            {/* Resumen Mera Liberalidad (usando savingsData) */}
-            <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-200 p-6">
-              <h3 className="text-xl font-bold text-blue-900 mb-4">Bonos de Mera Liberalidad</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-blue-700 mb-1">Total en bonos</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(savingsData.tikin.totalBonusAmount)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-blue-700 mb-1">Ahorro en parafiscales</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(savingsData.monthlyParafiscalesSavings)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-blue-700 mb-1">Comisión Tikin ({(tikinCommission.percentage * 100).toFixed(2)}%)</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(tikinCommission.baseCommission)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-blue-700 mb-1">Costo total Tikin</p>
-                  <p className="text-2xl font-bold text-blue-900">{formatCOP(tikinCommission.total)}</p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-blue-300">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-blue-700">Beneficio neto mensual:</span>
-                  <span className="text-2xl font-bold text-blue-900">{formatCOP(savingsData.netMonthlySavings)}</span>
-                </div>
-              </div>
-            </div>
+            {/* Resumen Consolidado de Ambos Bonos */}
+            <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-lg border border-indigo-200 p-6">
+              <h3 className="text-xl font-bold text-indigo-900 mb-6">Resumen de Bonos</h3>
 
-            {/* Resumen Alimentación */}
-            <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg border border-green-200 p-6">
-              <h3 className="text-xl font-bold text-green-900 mb-4">Bonos de Alimentación</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-green-700 mb-1">Total empleados</p>
-                  <p className="text-2xl font-bold text-green-900">{foodBonusData.totalEmpleados}</p>
+              <div className="space-y-4">
+                {/* Desglose de bonos */}
+                <div className="bg-white/60 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-indigo-800 mb-3">Total en Bonos</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-indigo-700 pl-4">• Bonos ML (Mera Liberalidad):</span>
+                      <span className="font-medium text-indigo-900">{formatCOP(savingsData.tikin.mlBonusAmount || 0)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-indigo-700 pl-4">• Bonos AL (Alimentación):</span>
+                      <span className="font-medium text-indigo-900">{formatCOP(foodBonusData.totalBonos)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-indigo-200">
+                      <span className="text-base font-semibold text-indigo-800">Total Bonos:</span>
+                      <span className="text-2xl font-bold text-indigo-900">
+                        {formatCOP((savingsData.tikin.mlBonusAmount || 0) + foodBonusData.totalBonos)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-green-700 mb-1">Total en bonos</p>
-                  <p className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.totalBonos)}</p>
+
+                {/* Ahorro en parafiscales */}
+                <div className="flex justify-between items-center py-2 border-b border-indigo-200">
+                  <div>
+                    <span className="text-sm text-indigo-700">Ahorro en parafiscales</span>
+                    <p className="text-xs text-indigo-600">(solo bonos ML generan ahorro)</p>
+                  </div>
+                  <span className="text-2xl font-bold text-indigo-900">
+                    {formatCOP(savingsData.monthlySavings)}
+                  </span>
                 </div>
-                <div>
-                  <p className="text-sm text-green-700 mb-1">Fee (1.25%)</p>
-                  <p className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.feeAmount)}</p>
+
+                {/* Comisiones Tikin totales */}
+                <div className="bg-white/60 rounded-lg p-4">
+                  <p className="text-sm font-semibold text-indigo-800 mb-3">Comisiones Tikin</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-indigo-700 pl-4">• ML ({(tikinCommission.percentage * 100).toFixed(2)}%):</span>
+                      <span className="font-medium text-indigo-900">{formatCOP(tikinCommission.baseCommission)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-indigo-700 pl-4">• AL (1.25%):</span>
+                      <span className="font-medium text-indigo-900">{formatCOP(foodBonusData.feeAmount)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-indigo-700 pl-4">• IVA (19%):</span>
+                      <span className="font-medium text-indigo-900">
+                        {formatCOP(tikinCommission.iva + foodBonusData.iva)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center pt-2 border-t border-indigo-200">
+                      <span className="text-base font-semibold text-indigo-800">Total Comisiones + IVA:</span>
+                      <span className="text-2xl font-bold text-indigo-900">
+                        {formatCOP(tikinCommission.totalCost + foodBonusData.feeAmount + foodBonusData.iva)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-green-700 mb-1">IVA (19%)</p>
-                  <p className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.iva)}</p>
-                </div>
-              </div>
-              <div className="mt-4 pt-4 border-t border-green-300">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-green-700">Total con fee:</span>
-                  <span className="text-2xl font-bold text-green-900">{formatCOP(foodBonusData.totalConFee)}</span>
+
+                {/* Beneficio neto mensual */}
+                <div className="flex justify-between items-center py-4 bg-gradient-to-r from-indigo-100 to-indigo-200 rounded-lg px-6 mt-4">
+                  <div>
+                    <span className="text-base font-medium text-indigo-800">Beneficio Neto Mensual</span>
+                    <p className="text-xs text-indigo-700 mt-1">Ahorro - Comisiones Totales</p>
+                  </div>
+                  <span className="text-3xl font-bold text-indigo-900">
+                    {formatCOP(savingsData.monthlySavings - (tikinCommission.totalCost + foodBonusData.feeAmount + foodBonusData.iva))}
+                  </span>
                 </div>
               </div>
             </div>
@@ -731,16 +896,25 @@ export default function BonosPage() {
             {/* Total Consolidado */}
             <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg border border-purple-200 p-6">
               <div className="text-center">
-                <p className="text-sm text-purple-700 mb-2">Total General Mensual</p>
+                <p className="text-sm text-purple-700 mb-2">Costo Total Mensual para el Cliente</p>
                 <p className="text-4xl font-bold text-purple-900">
-                  {formatCOP((savingsData.tikin.totalBonusAmount + tikinCommission.total) + foodBonusData.totalConFee)}
+                  {formatCOP(
+                    (savingsData.tikin.mlBonusAmount || 0) + // Bonos ML
+                    tikinCommission.totalCost +               // Comisión Tikin ML
+                    foodBonusData.totalConFee                 // Bonos AL + Fee + IVA
+                  )}
                 </p>
                 <p className="text-sm text-purple-600 mt-2">
-                  Bonos de ambos tipos + costos Tikin
+                  Bonos ML + Costo Tikin ML + Bonos AL con fee
                 </p>
                 <div className="mt-4 p-4 bg-white/50 rounded-lg">
-                  <p className="text-sm text-purple-700 mb-1">Ahorro neto total (solo Mera Liberalidad)</p>
-                  <p className="text-xl font-bold text-purple-900">{formatCOP(savingsData.netMonthlySavings)}</p>
+                  <p className="text-sm text-purple-700 mb-1">Ahorro neto en parafiscales (solo ML)</p>
+                  <p className="text-xl font-bold text-purple-900">
+                    {formatCOP(savingsData.monthlySavings - tikinCommission.totalCost)}
+                  </p>
+                  <p className="text-xs text-purple-600 mt-1">
+                    Este es el beneficio real comparado con pagar 100% salario sin bonos
+                  </p>
                 </div>
               </div>
             </div>
@@ -805,6 +979,14 @@ export default function BonosPage() {
             </div>
           </div>
         )}
+        </div>
+      </div>
+
+      {/* Legal Footer */}
+      <LegalFooter />
+
+      {/* Disclaimer Modal */}
+      <DisclaimerModal onAccept={() => setDisclaimerAccepted(true)} />
     </div>
   )
 }
