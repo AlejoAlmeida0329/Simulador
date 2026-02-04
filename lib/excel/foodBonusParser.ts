@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx'
-import { FoodBonusEmployee } from '@/types/bonuses'
+import { FoodBonusEmployee } from '@/components/bonuses/FoodBonusLoader'
 import { v4 as uuidv4 } from 'uuid'
 
 export interface FoodBonusParseResult {

@@ -24,17 +24,17 @@ export function EmployeeListGrouped({
   // Group employees by salary
   const groups: EmployeeGroup[] = Object.values(
     employees.reduce((acc, emp) => {
-      const key = emp.salary
+      const key = emp.salario
       if (!acc[key]) {
         acc[key] = {
-          salary: emp.salary,
+          salary: emp.salario,
           count: 0,
           total: 0,
           employeeIds: [],
         }
       }
       acc[key].count++
-      acc[key].total += emp.salary
+      acc[key].total += emp.salario
       acc[key].employeeIds.push(emp.id)
       return acc
     }, {} as Record<number, EmployeeGroup>)

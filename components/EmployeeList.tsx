@@ -7,7 +7,7 @@ import { formatCOP } from '@/lib/formatters'
 interface EmployeeListProps {
   employees: Employee[]
   totalSalary: number
-  onUpdate: (id: string, data: { salary: number; name?: string }) => void
+  onUpdate: (id: string, data: { salario: number; nombre?: string }) => void
   onRemove: (id: string) => void
 }
 

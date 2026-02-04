@@ -15,8 +15,8 @@ export function useEmployees() {
 
       const newEmployee: Employee = {
         id: crypto.randomUUID(),
-        salary: data.salary,
-        name: data.name,
+        salario: data.salario,
+        nombre: data.nombre,
       }
 
       setEmployees((prev) => [...prev, newEmployee])
@@ -30,12 +30,12 @@ export function useEmployees() {
   const addEmployeesBulk = useCallback((salary: number, count: number) => {
     try {
       // Validate salary
-      employeeSchema.parse({ salary })
+      employeeSchema.parse({ salario: salary })
 
       const newEmployees: Employee[] = Array.from({ length: count }, (_, index) => ({
         id: crypto.randomUUID(),
-        salary,
-        name: `Empleado (${formatCOP(salary)})`,
+        salario: salary,
+        nombre: `Empleado (${formatCOP(salary)})`,
       }))
 
       setEmployees((prev) => [...prev, ...newEmployees])
@@ -78,13 +78,13 @@ export function useEmployees() {
 
   // Remove all employees with a specific salary
   const removeEmployeeGroup = useCallback((salary: number) => {
-    setEmployees((prev) => prev.filter((emp) => emp.salary !== salary))
+    setEmployees((prev) => prev.filter((emp) => emp.salario !== salary))
     return { success: true }
   }, [])
 
   // Calculate aggregate totals
   const totalEmployees = employees.length
-  const totalSalary = employees.reduce((sum, emp) => sum + emp.salary, 0)
+  const totalSalary = employees.reduce((sum, emp) => sum + emp.salario, 0)
 
   return {
     employees,

@@ -70,8 +70,8 @@ export function DownloadQuotationButton({
         monthly_bonus_total: savingsData.tikin.totalBonusAmount,
 
         // Ahorros
-        monthly_savings: savingsData.monthlyParafiscalesSavings,
-        annual_savings: savingsData.annualParafiscalesSavings,
+        monthly_savings: savingsData.monthlySavings,
+        annual_savings: savingsData.monthlySavings * 12,
         percentage_reduction: savingsData.percentageReduction,
 
         // Comisión Tikin
@@ -79,11 +79,11 @@ export function DownloadQuotationButton({
         commission_percentage: tikinCommission.percentage,
         base_commission: tikinCommission.baseCommission,
         iva: tikinCommission.iva,
-        total_commission: tikinCommission.total,
+        total_commission: tikinCommission.totalCost,
 
         // Beneficio neto
-        net_monthly_savings: savingsData.netMonthlySavings,
-        net_annual_savings: savingsData.netAnnualSavings,
+        net_monthly_savings: savingsData.monthlySavings - tikinCommission.totalCost,
+        net_annual_savings: (savingsData.monthlySavings - tikinCommission.totalCost) * 12,
 
         // Metadata
         generated_by: 'Simulador Tikin',

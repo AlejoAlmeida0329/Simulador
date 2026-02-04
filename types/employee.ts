@@ -1,10 +1,10 @@
 export interface Employee {
   id: string
-  salary: number
-  name?: string
+  salario: number
+  nombre?: string
 }
 
 export interface EmployeeFormData {
-  salary: number
-  name?: string
+  salario: number
+  nombre?: string
 }

@@ -6,29 +6,29 @@ import { formatCOP } from '@/lib/formatters'
 
 interface EmployeeItemProps {
   employee: Employee
-  onUpdate: (id: string, data: { salary: number; name?: string }) => void
+  onUpdate: (id: string, data: { salario: number; nombre?: string }) => void
   onRemove: (id: string) => void
 }
 
 export function EmployeeItem({ employee, onUpdate, onRemove }: EmployeeItemProps) {
   const [isEditing, setIsEditing] = useState(false)
-  const [editSalary, setEditSalary] = useState(employee.salary.toString())
-  const [editName, setEditName] = useState(employee.name || '')
+  const [editSalary, setEditSalary] = useState(employee.salario.toString())
+  const [editName, setEditName] = useState(employee.nombre || '')
 
   const handleSave = () => {
     const salaryNum = parseFloat(editSalary)
     if (!isNaN(salaryNum) && salaryNum >= 0) {
       onUpdate(employee.id, {
-        salary: salaryNum,
-        name: editName.trim() || undefined,
+        salario: salaryNum,
+        nombre: editName.trim() || undefined,
       })
       setIsEditing(false)
     }
   }
 
   const handleCancel = () => {
-    setEditSalary(employee.salary.toString())
-    setEditName(employee.name || '')
+    setEditSalary(employee.salario.toString())
+    setEditName(employee.nombre || '')
     setIsEditing(false)
   }
 
@@ -87,10 +87,10 @@ export function EmployeeItem({ employee, onUpdate, onRemove }: EmployeeItemProps
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <h4 className="font-medium text-gray-900">
-            {employee.name || `Empleado ${employee.id.slice(0, 8)}`}
+            {employee.nombre || `Empleado ${employee.id.slice(0, 8)}`}
           </h4>
           <p className="text-lg font-semibold text-blue-600 mt-1">
-            {formatCOP(employee.salary)}
+            {formatCOP(employee.salario)}
           </p>
         </div>
 

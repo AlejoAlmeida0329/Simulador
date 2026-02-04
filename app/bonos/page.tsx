@@ -79,8 +79,7 @@ export default function BonosPage() {
         Array.from({ length: batch.cantidad }, (_, i) => ({
           id: `${batch.id}_${i}`,
           salario: batch.salarioPorEmpleado,
-          nombre: `Empleado ${i + 1}`,
-          origen: 'manual' as const
+          nombre: `Empleado ${i + 1}`
         }))
       )
 
