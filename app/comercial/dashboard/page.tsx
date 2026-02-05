@@ -38,16 +38,17 @@ export default async function ComercialDashboardPage() {
   // Obtener datos de cotizaciones aprobadas para calcular totales
   const { data: aprobadas } = await supabase
     .from('quotations')
-    .select('total_payroll, monthly_bonus_total, annual_savings, commission_percentage')
+    .select('total_payroll, monthly_bonus_total, monthly_savings, commission_percentage')
     .eq('user_id', profile?.id)
     .eq('status', 'accepted')
 
   // Calcular totales de cotizaciones aprobadas
   const totalNomina = aprobadas?.reduce((sum, q) => sum + (q.total_payroll || 0), 0) || 0
   const totalBonos = aprobadas?.reduce((sum, q) => sum + (q.monthly_bonus_total || 0), 0) || 0
-  const totalAhorros = aprobadas?.reduce((sum, q) => sum + (q.annual_savings || 0), 0) || 0
+  const totalAhorros = aprobadas?.reduce((sum, q) => sum + (q.monthly_savings || 0), 0) || 0
+  // commission_percentage está almacenado como decimal (0.04), multiplicar por 100 para obtener porcentaje (4%)
   const avgComisionTikin = aprobadas?.length
-    ? aprobadas.reduce((sum, q) => sum + (q.commission_percentage || 0), 0) / aprobadas.length
+    ? (aprobadas.reduce((sum, q) => sum + (q.commission_percentage || 0), 0) / aprobadas.length) * 100
     : 0
 
   // Formateo de moneda

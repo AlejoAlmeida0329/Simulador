@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { QuotationRecord } from '@/types/quotation'
 import { notify } from '@/lib/utils/notifications'
+import { updateQuotationStatus } from '@/lib/supabase/quotations'
 
 export default function CotizacionesPage() {
   const [quotations, setQuotations] = useState<QuotationRecord[]>([])
@@ -49,17 +50,41 @@ export default function CotizacionesPage() {
       setLoading(true)
       const supabase = createClient()
 
-      const { data, error } = await supabase
+      // Cargar cotizaciones
+      const { data: quotationsData, error: quotationsError } = await supabase
         .from('quotations')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (error) {
-        throw error
+      if (quotationsError) {
+        throw quotationsError
       }
 
-      setQuotations(data || [])
-      setFilteredQuotations(data || [])
+      // Obtener IDs únicos de usuarios
+      const userIds = [...new Set(quotationsData?.map(q => q.user_id).filter(Boolean))]
+
+      // Cargar información de usuarios
+      const { data: usersData, error: usersError } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name')
+        .in('id', userIds)
+
+      if (usersError) {
+        console.error('Error loading users:', usersError)
+      }
+
+      // Crear mapa de usuarios para búsqueda rápida
+      const usersMap = new Map(usersData?.map(u => [u.id, u]) || [])
+
+      // Combinar datos
+      const quotationsWithUsers = quotationsData?.map(q => ({
+        ...q,
+        user_name: usersMap.get(q.user_id)?.full_name || null,
+        user_email: usersMap.get(q.user_id)?.email || null
+      })) || []
+
+      setQuotations(quotationsWithUsers)
+      setFilteredQuotations(quotationsWithUsers)
     } catch (error: any) {
       notify.error('Error al cargar las cotizaciones')
       console.error(error)
@@ -82,6 +107,25 @@ export default function CotizacionesPage() {
       month: 'short',
       day: 'numeric',
     })
+  }
+
+  const handleStatusChange = async (quotationId: string, newStatus: 'pending' | 'accepted' | 'rejected') => {
+    try {
+      const result = await updateQuotationStatus(quotationId, newStatus)
+
+      if (result.success) {
+        notify.success('Estado actualizado correctamente')
+        // Actualizar la cotización en el estado local
+        setQuotations(prev =>
+          prev.map(q => q.id === quotationId ? { ...q, status: newStatus } : q)
+        )
+      } else {
+        notify.error(result.error || 'Error al actualizar el estado')
+      }
+    } catch (error) {
+      notify.error('Error al actualizar el estado')
+      console.error(error)
+    }
   }
 
   const getStatusBadge = (status?: string) => {
@@ -209,6 +253,9 @@ export default function CotizacionesPage() {
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Empresa
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Comercial
+                    </th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Empleados
                     </th>
@@ -235,6 +282,12 @@ export default function CotizacionesPage() {
                           <div className="text-xs text-gray-500">NIT: {quotation.nit}</div>
                         )}
                       </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        <div className="font-medium">{(quotation as any).user_name || (quotation as any).user_email || 'N/A'}</div>
+                        {((quotation as any).user_name && (quotation as any).user_email) && (
+                          <div className="text-xs text-gray-500">{(quotation as any).user_email}</div>
+                        )}
+                      </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                         {quotation.employee_count}
                       </td>
@@ -242,10 +295,24 @@ export default function CotizacionesPage() {
                         {formatCurrency(quotation.total_payroll)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                        {quotation.commission_percentage}%
+                        {(quotation.commission_percentage * 100).toFixed(2)}%
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
-                        {getStatusBadge(quotation.status)}
+                        <select
+                          value={quotation.status || 'pending'}
+                          onChange={(e) => handleStatusChange(quotation.id!, e.target.value as 'pending' | 'accepted' | 'rejected')}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-tikin-red transition-all ${
+                            quotation.status === 'accepted'
+                              ? 'bg-green-100 text-green-800 border-green-300'
+                              : quotation.status === 'rejected'
+                              ? 'bg-red-100 text-red-800 border-red-300'
+                              : 'bg-yellow-100 text-yellow-800 border-yellow-300'
+                          }`}
+                        >
+                          <option value="pending">Pendiente</option>
+                          <option value="accepted">Aceptada</option>
+                          <option value="rejected">Rechazada</option>
+                        </select>
                       </td>
                     </tr>
                   ))}

@@ -279,7 +279,7 @@ export default function MisCotizacionesPage() {
                         {formatCurrency(quotation.total_payroll)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                        {quotation.commission_percentage}%
+                        {(quotation.commission_percentage * 100).toFixed(2)}%
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
                         {getStatusBadge(quotation.status)}
