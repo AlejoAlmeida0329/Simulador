@@ -1,6 +1,7 @@
 export interface QuotationRecord {
   id?: string
   created_at?: string
+  user_id?: string  // Usuario que creó la cotización
   company_name: string
   contact_name: string
   email: string

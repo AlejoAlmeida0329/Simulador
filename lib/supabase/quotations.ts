@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './client'
+import { supabase, createClient, isSupabaseConfigured } from './client'
 import { QuotationInsert, QuotationRecord } from '@/types/quotation'
 
 export async function saveQuotation(quotation: QuotationInsert): Promise<{ success: boolean; data?: QuotationRecord; error?: string }> {
@@ -9,9 +9,27 @@ export async function saveQuotation(quotation: QuotationInsert): Promise<{ succe
       return { success: false, error: 'Supabase not configured' }
     }
 
-    const { data, error } = await supabase
+    // Usar el mismo cliente para ambas operaciones
+    const supabaseClient = createClient()
+
+    // Obtener el usuario autenticado actual
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
+
+    if (userError || !user) {
+      console.error('Error getting authenticated user:', userError)
+      return { success: false, error: 'Usuario no autenticado' }
+    }
+
+    // Agregar user_id a la cotización
+    const quotationWithUser = {
+      ...quotation,
+      user_id: user.id
+    }
+
+    // Usar el mismo cliente para insertar
+    const { data, error } = await supabaseClient
       .from('quotations')
-      .insert(quotation)
+      .insert(quotationWithUser)
       .select()
       .single()
 
@@ -20,7 +38,7 @@ export async function saveQuotation(quotation: QuotationInsert): Promise<{ succe
       return { success: false, error: error.message }
     }
 
-    console.log('✅ Quotation saved to Supabase:', data.id)
+    console.log('✅ Quotation saved to Supabase:', data.id, 'for user:', user.id)
     return { success: true, data }
   } catch (error) {
     console.error('Exception saving quotation:', error)

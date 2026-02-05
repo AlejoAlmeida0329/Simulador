@@ -1,21 +1,24 @@
 'use client'
 
 /**
- * ADMIN - Gestión de Cotizaciones
+ * COMERCIAL - Mis Cotizaciones
  *
- * Panel para ver todas las cotizaciones generadas
- * Incluye filtros por empresa y estado
+ * Panel para ver las cotizaciones del comercial
+ * Incluye filtros por empresa y estado, botón para crear nueva cotización
  */
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { QuotationRecord } from '@/types/quotation'
 import { notify } from '@/lib/utils/notifications'
+import { useRouter } from 'next/navigation'
 
-export default function CotizacionesPage() {
+export default function MisCotizacionesPage() {
+  const router = useRouter()
   const [quotations, setQuotations] = useState<QuotationRecord[]>([])
   const [filteredQuotations, setFilteredQuotations] = useState<QuotationRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
 
   // Filtros
   const [companyFilter, setCompanyFilter] = useState('')
@@ -49,9 +52,20 @@ export default function CotizacionesPage() {
       setLoading(true)
       const supabase = createClient()
 
+      // Obtener usuario actual
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+
+      if (userError || !user) {
+        throw new Error('Usuario no autenticado')
+      }
+
+      setUserId(user.id)
+
+      // Cargar cotizaciones del usuario
       const { data, error } = await supabase
         .from('quotations')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -108,7 +122,6 @@ export default function CotizacionesPage() {
     )
   }
 
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -123,14 +136,30 @@ export default function CotizacionesPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-[1600px] mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Gestión de Cotizaciones
-          </h1>
-          <p className="text-gray-600">
-            Panel de administración de cotizaciones generadas
-          </p>
+        {/* Header con botón de Nueva Cotización */}
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Mis Cotizaciones
+            </h1>
+            <p className="text-gray-600">
+              Todas las cotizaciones que has creado
+            </p>
+          </div>
+          <button
+            onClick={() => router.push('/bonos')}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-tikin-red to-red-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-105"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Nueva Cotización
+          </button>
         </div>
 
         {/* Filtros */}
@@ -194,9 +223,17 @@ export default function CotizacionesPage() {
             <div className="p-12 text-center">
               <p className="text-gray-500">
                 {quotations.length === 0
-                  ? 'No hay cotizaciones registradas'
+                  ? 'No has creado cotizaciones todavía'
                   : 'No se encontraron cotizaciones con los filtros aplicados'}
               </p>
+              {quotations.length === 0 && (
+                <button
+                  onClick={() => router.push('/bonos')}
+                  className="mt-4 px-6 py-2 bg-tikin-red text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Crear primera cotización
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">

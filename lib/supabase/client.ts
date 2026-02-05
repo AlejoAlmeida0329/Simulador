@@ -1,4 +1,5 @@
-import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 // Función para verificar si Supabase está configurado
 export function isSupabaseConfigured(): boolean {
@@ -27,7 +28,8 @@ function getSupabaseClient(): SupabaseClient {
     console.warn('⚠️ Supabase credentials not configured. Database features will be disabled.')
   }
 
-  _supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
+  // Usar createBrowserClient para correcto manejo de cookies en el navegador
+  _supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
   return _supabase
 }
 
@@ -40,6 +42,7 @@ export const supabase = new Proxy({} as SupabaseClient, {
 })
 
 // Exportar función createClient para compatibilidad con AuthContext y componentes
+// IMPORTANTE: createBrowserClient maneja cookies correctamente en Next.js App Router
 export function createClient(): SupabaseClient {
   return getSupabaseClient()
 }

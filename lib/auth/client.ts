@@ -32,17 +32,12 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
 
 /**
  * Cierra la sesión del usuario
+ * Redirige al route handler /logout que maneja la limpieza server-side
  */
 export async function signOut(): Promise<void> {
-  const supabase = createClient()
-  await supabase.auth.signOut()
-  
-  // Limpiar storage
-  localStorage.clear()
-  sessionStorage.clear()
-  
-  // Redirigir al login
-  window.location.href = '/login'
+  // Redirigir al route handler que maneja logout server-side
+  // Esto asegura limpieza completa de cookies y sesión
+  window.location.href = '/logout'
 }
 
 /**

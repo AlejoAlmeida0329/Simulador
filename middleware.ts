@@ -98,7 +98,8 @@ export async function middleware(request: NextRequest) {
   // ==========================================
   const isAdminPath = pathname.startsWith('/admin')
   const isComercialPath = pathname.startsWith('/comercial')
-  const isProtectedPath = isAdminPath || isComercialPath
+  const isBonosPath = pathname.startsWith('/bonos')
+  const isProtectedPath = isAdminPath || isComercialPath || isBonosPath
 
   // Redirigir a login si no está autenticado
   if (isProtectedPath && !user) {
@@ -146,6 +147,9 @@ export async function middleware(request: NextRequest) {
       url.pathname = '/admin/dashboard'
       return NextResponse.redirect(url)
     }
+
+    // /bonos es accesible para ambos roles (admin y comercial)
+    // No se requiere verificación adicional
   }
 
   return supabaseResponse
