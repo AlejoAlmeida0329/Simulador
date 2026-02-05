@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient, SupabaseClient } from '@supabase/supabase-js'
 
 // Función para verificar si Supabase está configurado
 export function isSupabaseConfigured(): boolean {
@@ -27,7 +27,7 @@ function getSupabaseClient(): SupabaseClient {
     console.warn('⚠️ Supabase credentials not configured. Database features will be disabled.')
   }
 
-  _supabase = createClient(supabaseUrl, supabaseAnonKey)
+  _supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
   return _supabase
 }
 
@@ -38,3 +38,8 @@ export const supabase = new Proxy({} as SupabaseClient, {
     return (client as any)[prop]
   }
 })
+
+// Exportar función createClient para compatibilidad con AuthContext y componentes
+export function createClient(): SupabaseClient {
+  return getSupabaseClient()
+}

@@ -67,3 +67,31 @@ export async function getQuotationsByCompany(companyName: string): Promise<{ suc
     return { success: false, error: String(error) }
   }
 }
+
+export async function updateQuotationStatus(
+  quotationId: string,
+  status: 'pending' | 'accepted' | 'rejected'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!isSupabaseConfigured()) {
+      console.warn('⚠️ Supabase not configured')
+      return { success: false, error: 'Supabase not configured' }
+    }
+
+    const { error } = await supabase
+      .from('quotations')
+      .update({ status })
+      .eq('id', quotationId)
+
+    if (error) {
+      console.error('Error updating quotation status:', error)
+      return { success: false, error: error.message }
+    }
+
+    console.log('✅ Quotation status updated:', quotationId, status)
+    return { success: true }
+  } catch (error) {
+    console.error('Exception updating quotation status:', error)
+    return { success: false, error: String(error) }
+  }
+}

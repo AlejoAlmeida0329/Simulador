@@ -10,28 +10,26 @@
  */
 
 import { useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { requestLoginLink } from '@/lib/actions/auth'
 import { notify } from '@/lib/utils/notifications'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [emailSent, setEmailSent] = useState(false)
-  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
+      const result = await requestLoginLink(email)
 
-      if (error) throw error
+      if (!result.success) {
+        notify.error(result.error || 'Error al enviar el link')
+        setLoading(false)
+        return
+      }
 
       setEmailSent(true)
       notify.success('Link de acceso enviado a tu correo')

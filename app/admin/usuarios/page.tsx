@@ -153,7 +153,7 @@ export default function UsuariosPage() {
   }
 
   const adminUsers = users.filter((u) => u.role === 'admin')
-  const regularUsers = users.filter((u) => u.role === 'user')
+  const regularUsers = users.filter((u) => u.role === 'comercial')
   const approvedUsers = users.filter((u) => u.approved)
   const pendingUsers = users.filter((u) => !u.approved)
 

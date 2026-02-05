@@ -7,6 +7,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/auth/server'
 import { revalidatePath } from 'next/cache'
+import { sendComercialInvitation } from '@/lib/email/gmail'
 import type {
   ComercialInvitation,
   ComercialInvitationWithAdmin,
@@ -43,15 +44,11 @@ export async function getPendingInvitations(): Promise<ComercialInvitationWithAd
   await requireAdmin()
 
   const supabase = await createClient()
-  const { data, error } = await supabase
+
+  // Obtener invitaciones
+  const { data: invitations, error } = await supabase
     .from('comercial_invitations')
-    .select(`
-      *,
-      admin:invited_by (
-        email,
-        full_name
-      )
-    `)
+    .select('*')
     .eq('status', 'pending')
     .order('created_at', { ascending: false })
 
@@ -60,13 +57,33 @@ export async function getPendingInvitations(): Promise<ComercialInvitationWithAd
     return []
   }
 
-  return data.map(inv => ({
-    ...inv,
-    admin: {
-      email: inv.admin.email,
-      full_name: inv.admin.full_name || null,
-    },
-  })) as ComercialInvitationWithAdmin[]
+  if (!invitations || invitations.length === 0) {
+    return []
+  }
+
+  // Obtener IDs únicos de admins
+  const adminIds = [...new Set(invitations.map(inv => inv.invited_by).filter(Boolean))]
+
+  // Obtener información de admins en una sola consulta
+  const { data: admins } = await supabase
+    .from('user_profiles')
+    .select('id, email, full_name')
+    .in('id', adminIds)
+
+  // Crear un mapa de admins para acceso rápido
+  const adminMap = new Map(admins?.map(admin => [admin.id, admin]) || [])
+
+  // Combinar datos
+  return invitations.map(inv => {
+    const admin = inv.invited_by ? adminMap.get(inv.invited_by) : null
+    return {
+      ...inv,
+      admin: admin ? {
+        email: admin.email,
+        full_name: admin.full_name || null,
+      } : null,
+    }
+  }) as ComercialInvitationWithAdmin[]
 }
 
 /**
@@ -125,8 +142,19 @@ export async function createInvitation(
       return { success: false, error: 'Error al crear la invitación' }
     }
 
-    // TODO: Enviar email de invitación
-    // await sendInvitationEmail(invitation)
+    // Enviar email de invitación
+    const emailResult = await sendComercialInvitation({
+      to: invitation.email,
+      full_name: invitation.full_name,
+      invitationId: invitation.id!,
+    })
+
+    if (!emailResult.success && !emailResult.warning) {
+      console.error('Error sending invitation email:', emailResult.error)
+      console.warn('⚠️ Invitación creada pero email no enviado')
+    } else if (emailResult.warning) {
+      console.warn('⚠️', emailResult.warning)
+    }
 
     revalidatePath('/admin/comerciales')
 
@@ -138,29 +166,56 @@ export async function createInvitation(
 }
 
 /**
- * Cancelar invitación
+ * Eliminar invitación (hard delete)
  */
 export async function cancelInvitation(invitationId: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin()
-    const supabase = await createClient()
 
-    const { error } = await supabase
+    // Usar service role para bypassear RLS en eliminaciones
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+
+    // Primero verificar que la invitación existe
+    const { data: existingInv, error: checkError } = await supabaseAdmin
       .from('comercial_invitations')
-      .update({ status: 'cancelled' })
+      .select('id, email, status')
       .eq('id', invitationId)
-      .eq('status', 'pending')
+      .single()
 
-    if (error) {
-      console.error('Error cancelling invitation:', error)
-      return { success: false, error: 'Error al cancelar la invitación' }
+    if (checkError || !existingInv) {
+      console.error('❌ Invitación no encontrada:', invitationId)
+      return { success: false, error: 'Invitación no encontrada' }
     }
 
-    revalidatePath('/admin/comerciales')
+    console.log('📋 Invitación encontrada:', existingInv)
 
+    // Eliminar sin filtro de status (permitir eliminar cualquier invitación)
+    const { error } = await supabaseAdmin
+      .from('comercial_invitations')
+      .delete()
+      .eq('id', invitationId)
+
+    if (error) {
+      console.error('❌ Error deleting invitation:', error)
+      console.error('❌ Error details:', JSON.stringify(error, null, 2))
+      return { success: false, error: 'Error al eliminar la invitación' }
+    }
+
+    console.log('✅ Invitación eliminada exitosamente:', invitationId)
+    revalidatePath('/admin/comerciales')
     return { success: true }
   } catch (error: any) {
-    console.error('Error in cancelInvitation:', error)
+    console.error('❌ Error in cancelInvitation:', error)
     return { success: false, error: error.message || 'Error desconocido' }
   }
 }
@@ -198,8 +253,17 @@ export async function resendInvitation(invitationId: string): Promise<{ success:
       return { success: false, error: 'Error al actualizar la invitación' }
     }
 
-    // TODO: Reenviar email
-    // await sendInvitationEmail(invitation)
+    // Reenviar email
+    const emailResult = await sendComercialInvitation({
+      to: invitation.email,
+      full_name: invitation.full_name,
+      invitationId: invitation.id!,
+    })
+
+    if (!emailResult.success) {
+      console.error('Error resending invitation email:', emailResult.error)
+      return { success: false, error: 'Error al reenviar el email' }
+    }
 
     revalidatePath('/admin/comerciales')
 
@@ -246,34 +310,71 @@ export async function updateComercialApproval(
 }
 
 /**
- * Eliminar comercial (soft delete - marca como inactivo)
+ * Eliminar comercial (hard delete - elimina completamente)
  */
 export async function deleteComercial(userId: string): Promise<{ success: boolean; error?: string }> {
   try {
     await requireAdmin()
-    const supabase = await createClient()
 
-    // En lugar de eliminar, marcamos como rechazado/desactivado
-    const { error } = await supabase
+    // Usar service role para bypassear RLS en eliminaciones
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const supabaseAdmin = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false,
+        },
+      }
+    )
+
+    // 1. Obtener el email del comercial antes de eliminarlo
+    const { data: userProfile, error: fetchError } = await supabaseAdmin
       .from('user_profiles')
-      .update({
-        approved: false,
-        approval_status: 'rejected',
-        updated_at: new Date().toISOString(),
-      })
+      .select('email')
+      .eq('id', userId)
+      .eq('role', 'comercial')
+      .single()
+
+    if (fetchError || !userProfile) {
+      console.error('❌ Comercial no encontrado:', userId)
+      return { success: false, error: 'Comercial no encontrado' }
+    }
+
+    console.log('📧 Email del comercial:', userProfile.email)
+
+    // 2. Eliminar el usuario de user_profiles
+    const { error: deleteUserError } = await supabaseAdmin
+      .from('user_profiles')
+      .delete()
       .eq('id', userId)
       .eq('role', 'comercial')
 
-    if (error) {
-      console.error('Error deleting comercial:', error)
+    if (deleteUserError) {
+      console.error('❌ Error deleting comercial from user_profiles:', deleteUserError)
       return { success: false, error: 'Error al eliminar el comercial' }
     }
 
-    revalidatePath('/admin/comerciales')
+    console.log('✅ Comercial eliminado de user_profiles')
 
+    // 3. Eliminar la invitación asociada de comercial_invitations
+    const { error: deleteInvError } = await supabaseAdmin
+      .from('comercial_invitations')
+      .delete()
+      .eq('email', userProfile.email)
+
+    if (deleteInvError) {
+      console.error('⚠️ Error deleting invitation (non-critical):', deleteInvError)
+      // No retornar error porque el usuario ya fue eliminado
+    } else {
+      console.log('✅ Invitación asociada eliminada de comercial_invitations')
+    }
+
+    revalidatePath('/admin/comerciales')
     return { success: true }
   } catch (error: any) {
-    console.error('Error in deleteComercial:', error)
+    console.error('❌ Error in deleteComercial:', error)
     return { success: false, error: error.message || 'Error desconocido' }
   }
 }

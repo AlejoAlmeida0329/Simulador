@@ -14,10 +14,9 @@ export default function InvitarComercialPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState<CreateInvitationInput>({
+  const [form, setForm] = useState({
     email: '',
     full_name: '',
-    company_name: '',
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +31,11 @@ export default function InvitarComercialPage() {
       return
     }
 
-    const result = await createInvitation(form)
+    // Todos los comerciales son de Tikin
+    const result = await createInvitation({
+      ...form,
+      company_name: 'Tikin',
+    })
 
     if (result.success) {
       alert('¡Invitación enviada correctamente!')
@@ -94,21 +97,7 @@ export default function InvitarComercialPage() {
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-tikin-red focus:border-transparent"
               placeholder="Juan Pérez"
             />
-          </div>
-
-          {/* Empresa (Opcional) */}
-          <div>
-            <label htmlFor="company_name" className="block text-sm font-medium text-gray-700 mb-2">
-              Empresa (Opcional)
-            </label>
-            <input
-              type="text"
-              id="company_name"
-              value={form.company_name}
-              onChange={e => setForm({ ...form, company_name: e.target.value })}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-tikin-red focus:border-transparent"
-              placeholder="Acme Corp"
-            />
+            <p className="text-xs text-gray-500 mt-1">Todos los comerciales pertenecen a Tikin</p>
           </div>
 
           {/* Error */}

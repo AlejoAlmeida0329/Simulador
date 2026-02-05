@@ -5,12 +5,13 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { acceptInvitation, sendLoginLink } from '@/lib/actions/invitations'
 import type { ComercialInvitation } from '@/types/invitations'
 
-export default function AcceptInvitationPage() {
+function AcceptInvitationContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
@@ -37,7 +38,7 @@ export default function AcceptInvitationPage() {
       const { data, error } = await supabase
         .from('comercial_invitations')
         .select('*')
-        .eq('token', token!)
+        .eq('id', token!)
         .eq('status', 'pending')
         .single()
 
@@ -70,32 +71,31 @@ export default function AcceptInvitationPage() {
     setError(null)
 
     try {
-      const supabase = createClient()
+      // 1. Crear usuario y aceptar invitación
+      const result = await acceptInvitation(invitation.id)
 
-      // Enviar Magic Link a este email
-      const { error: signInError } = await supabase.auth.signInWithOtp({
-        email: invitation.email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-
-      if (signInError) {
-        if (signInError.message.includes('rate_limit') || signInError.message.includes('Email rate limit')) {
-          setError('Demasiados intentos. Espera 1-2 minutos e intenta de nuevo.')
-        } else {
-          setError(signInError.message)
-        }
+      if (!result.success) {
+        setError(result.error || 'Error al procesar la invitación')
         setAccepting(false)
         return
       }
 
-      // Mostrar mensaje de éxito
-      alert(
-        `¡Invitación aceptada!\n\nHemos enviado un link de acceso a ${invitation.email}.\nRevisa tu correo y haz clic en el link para acceder.`
-      )
+      // 2. Enviar Magic Link para login
+      const linkResult = await sendLoginLink(invitation.email, invitation.full_name)
 
-      // Redirigir a login
+      if (!linkResult.success) {
+        // Usuario creado pero falló el envío del link
+        alert(
+          `¡Usuario creado exitosamente!\n\nPor favor ve a la página de login e ingresa tu email: ${invitation.email}\n\nRecibirás un link de acceso.`
+        )
+        router.push('/login')
+        return
+      }
+
+      // 3. Todo exitoso
+      alert(
+        `¡Bienvenido a Tikin!\n\nTu cuenta ha sido creada exitosamente.\n\nHemos enviado un link de acceso a tu correo: ${invitation.email}\n\nRevisa tu bandeja de entrada y haz clic en el link para ingresar.`
+      )
       router.push('/login')
     } catch (err: any) {
       console.error('Error accepting invitation:', err)
@@ -204,9 +204,10 @@ export default function AcceptInvitationPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <h3 className="font-medium text-blue-900 mb-2">Al aceptar la invitación:</h3>
           <ul className="text-sm text-blue-800 space-y-1">
+            <li>✓ Tu cuenta será creada automáticamente</li>
             <li>✓ Recibirás un link de acceso por email</li>
-            <li>✓ Tendrás acceso inmediato al sistema</li>
-            <li>✓ Podrás crear cotizaciones de parafiscales</li>
+            <li>✓ Podrás ingresar al sistema con un solo clic</li>
+            <li>✓ Tendrás acceso para crear cotizaciones de parafiscales</li>
           </ul>
         </div>
 
@@ -226,5 +227,22 @@ export default function AcceptInvitationPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AcceptInvitationPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tikin-red mx-auto mb-4"></div>
+            <p className="text-gray-600">Cargando...</p>
+          </div>
+        </div>
+      }
+    >
+      <AcceptInvitationContent />
+    </Suspense>
   )
 }

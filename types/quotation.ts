@@ -34,6 +34,7 @@ export interface QuotationRecord {
   // Metadata
   generated_by?: string
   pdf_filename?: string
+  status?: 'pending' | 'accepted' | 'rejected'
 }
 
 export type QuotationInsert = Omit<QuotationRecord, 'id' | 'created_at'>
