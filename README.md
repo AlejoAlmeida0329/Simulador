@@ -1,68 +1,113 @@
-# Simulador Tikin - Calculadora de Ahorros en Parafiscales
+# Simulador Tikin - Sistema de Gestión y Cotización
 
-Herramienta profesional para el equipo comercial de Tikin que calcula y cotiza ahorros en parafiscales mediante flexibilización salarial.
+Plataforma web profesional para el equipo comercial de Tikin que calcula ahorros en parafiscales mediante flexibilización salarial y gestiona el proceso completo de cotización.
 
 ## 🎯 Propósito
 
-Sistema completo de cotización que permite al equipo comercial:
-- Capturar datos del cliente y generar cotizaciones profesionales en PDF
-- Demostrar ahorros instantáneos en parafiscales usando el modelo Tikin
-- Calcular automáticamente la comisión Tikin según volumen
-- Almacenar todas las cotizaciones en base de datos
-- Presentar comparaciones visuales profesionales entre escenario tradicional y Tikin
+Sistema integral que permite:
+- Gestionar equipo comercial mediante sistema de invitaciones
+- Calcular y cotizar ahorros en parafiscales usando el modelo Tikin
+- Generar cotizaciones profesionales en PDF con branding completo
+- Administrar usuarios y cotizaciones desde panel de administración
 
 ## ✨ Características Principales
 
-### 💼 Sistema de Cotización
-- ✅ Modal de captura de datos del cliente (empresa, contacto, NIT, etc.)
-- ✅ Generación de PDF profesional con branding Tikin completo
-- ✅ Almacenamiento automático en Supabase de todas las cotizaciones
-- ✅ Cálculo inteligente de comisión Tikin (4 niveles según volumen)
-- ✅ Beneficio neto calculado (ahorro - comisión Tikin)
+### 🔐 Sistema de Autenticación
+- **Magic Link Authentication**: Login sin contraseña mediante enlaces de un solo uso
+- **Gestión de Invitaciones**: Sistema completo de invitación para comerciales
+- **Roles y Permisos**: Admin y Comercial con permisos diferenciados
+- **Middleware de Protección**: Rutas protegidas según rol de usuario
 
-### 👥 Gestión de Empleados
-- ✅ Agregar empleados individuales o en grupos
-- ✅ Editar y eliminar empleados de la nómina
-- ✅ Visualización de totales agregados
-- ✅ Vista agrupada por rango salarial
+### 👥 Panel de Administración
+- **Gestión de Comerciales**: Ver, aprobar, rechazar y eliminar comerciales
+- **Sistema de Invitaciones**: Invitar nuevos comerciales por email
+- **Gestión de Cotizaciones**: Ver todas las cotizaciones generadas
+- **Dashboard**: Estadísticas y métricas del sistema
+
+### 💼 Sistema de Cotización
+- **Modal de Captura**: Datos del cliente (empresa, contacto, NIT, etc.)
+- **PDF Profesional**: Generación con branding Tikin completo
+- **Almacenamiento**: Registro automático en Supabase
+- **Comisión Tikin**: Cálculo automático en 4 niveles según volumen
+- **Beneficio Neto**: Ahorro - comisión Tikin
 
 ### 🧮 Motor de Cálculo
-- ✅ Cálculo preciso de 6 contribuciones parafiscales:
+- **6 Contribuciones Parafiscales**:
   - Salud (8.5%), Pensión (12%)
   - ARL (0.522% - 6.960% según nivel I-V)
   - SENA (2%), ICBF (3%), Caja (4%)
-- ✅ Sistema de comisión Tikin por niveles:
+- **Sistema de Comisión Tikin**:
   - Nivel 1 (< $80M): 4%
   - Nivel 2 ($80M-$150M): 3.5%
   - Nivel 3 ($150M-$500M): 2.5%
   - Nivel 4 ($500M-$1000M+): 1.8%
 
-### 🎨 Experiencia de Usuario
-- ✅ Slider interactivo de división salario/bono (60%-100%)
-- ✅ Selector de nivel de riesgo ARL (Clase I-V)
-- ✅ Actualizaciones en tiempo real
-- ✅ Diseño profesional con branding Tikin
-- ✅ Responsive (desktop, tablet, móvil)
+### 👨‍💼 Portal Comercial
+- **Dashboard Personal**: Vista de cotizaciones propias
+- **Acceso a Simulador**: Calculadora de parafiscales
+- **Generación de PDF**: Cotizaciones para clientes
+- **Historial**: Cotizaciones generadas anteriormente
 
-### 📊 Comparación de Escenarios
-- ✅ Escenario Tradicional (100% salario) vs. Tikin
-- ✅ Visualización lado a lado con desglose completo
-- ✅ Métricas de ahorro destacadas
-- ✅ Proyección de beneficio neto anual
+### 📊 Características de Cálculo
+- **Gestión de Empleados**: Agregar, editar, eliminar empleados
+- **Slider Interactivo**: División salario/bono (60%-100%)
+- **Selector ARL**: Nivel de riesgo (Clase I-V)
+- **Actualización en Tiempo Real**: Cálculos instantáneos
+- **Comparación Visual**: Escenario tradicional vs. Tikin
 
 ## 🛠 Stack Tecnológico
 
 - **Framework**: Next.js 14 (App Router)
 - **UI**: React 18 + TypeScript 5.9
 - **Styling**: Tailwind CSS 3.4
-- **PDF Generation**: pdfmake
+- **Auth**: Supabase Auth + Magic Links
+- **Email**: Gmail API (nodemailer)
 - **Database**: Supabase (PostgreSQL)
+- **PDF Generation**: pdfmake
 - **Deployment**: Vercel
 - **Validation**: Zod 4.3
 
+## 📁 Estructura del Proyecto
+
+```
+/app
+├── /admin              # Panel de administración
+│   ├── /comerciales    # Gestión de comerciales
+│   ├── /cotizaciones   # Ver cotizaciones
+│   ├── /dashboard      # Dashboard admin
+│   └── /usuarios       # Gestión de usuarios
+├── /auth               # Rutas de autenticación
+│   ├── /callback       # Callbacks de Supabase
+│   ├── /accept-invitation  # Aceptar invitación
+│   └── /magic-login    # Procesamiento magic link
+├── /bonos              # Simulador de bonos (calculadora)
+├── /dashboard          # Dashboard comercial
+├── /login              # Página de login
+└── /pending-approval   # Espera de aprobación
+
+/lib
+├── /actions            # Server Actions
+│   ├── auth.ts         # Autenticación
+│   ├── comerciales.ts  # Gestión comerciales
+│   └── invitations.ts  # Sistema de invitaciones
+├── /auth               # Utilidades de autenticación
+├── /calculations       # Motor de cálculo parafiscales
+├── /email              # Sistema de emails (Gmail)
+└── /supabase          # Cliente Supabase
+
+/supabase
+├── /migrations         # Migraciones SQL
+└── /rls-policies      # Políticas de seguridad
+```
+
 ## 🚀 Quick Start
 
-### Desarrollo Local
+### Requisitos Previos
+- Node.js 18+ (recomendado v24)
+- Cuenta en Supabase
+- Credenciales de Gmail API (opcional para emails)
+
+### Instalación
 
 ```bash
 # Clonar repositorio
@@ -72,63 +117,136 @@ cd simulador-tikin
 # Instalar dependencias
 npm install
 
-# Configurar Supabase
+# Configurar variables de entorno
 cp .env.local.example .env.local
-# Edita .env.local con tus credenciales de Supabase
-
-# Ejecutar en desarrollo
-npm run dev
+# Edita .env.local con tus credenciales
 ```
 
-La aplicación estará disponible en [http://localhost:3000](http://localhost:3000)
+### Variables de Entorno Requeridas
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
+
+# Gmail API (opcional)
+GMAIL_USER=tu-email@gmail.com
+GMAIL_CLIENT_ID=xxx.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=xxx
+GMAIL_REFRESH_TOKEN=xxx
+```
 
 ### Configuración de Supabase
 
 Ver guía completa: **[SUPABASE_SETUP.md](SUPABASE_SETUP.md)**
 
-### Deployment en Vercel
+1. Crear proyecto en Supabase
+2. Ejecutar migraciones SQL
+3. Configurar políticas RLS
+4. Crear primer usuario admin
 
-Ver guía paso a paso: **[DEPLOYMENT.md](DEPLOYMENT.md)**
+### Ejecutar en Desarrollo
 
-## 📊 Flujo de Uso
+```bash
+npm run dev
+```
 
-1. **Captura de datos**: Completa información del cliente en el modal inicial
-2. **Agregar empleados**: Ingresa salarios individuales o en grupos
-3. **Configurar escenario**: Ajusta división salario/bono y nivel ARL
-4. **Revisar comparación**: Ve ahorros entre escenario tradicional y Tikin
-5. **Generar cotización**: Descarga PDF profesional con toda la información
-6. **Registro automático**: La cotización se guarda en Supabase
+La aplicación estará disponible en [http://localhost:3000](http://localhost:3000)
 
-## 🗄️ Base de Datos
+## 📚 Guías de Configuración
 
-Cada cotización almacena:
-- Información del cliente
-- Configuración de salario/bono
-- Ahorros calculados
-- Comisión Tikin
-- Beneficio neto
-- Metadata (fecha, PDF filename)
+- **[SUPABASE_SETUP.md](SUPABASE_SETUP.md)** - Configuración completa de Supabase
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Deployment en Vercel paso a paso
+
+## 🔐 Sistema de Autenticación
+
+### Flujo de Invitación
+
+1. **Admin invita comercial** → Email con link de invitación
+2. **Comercial acepta** → Cuenta creada automáticamente
+3. **Magic link enviado** → Login sin contraseña
+4. **Acceso al dashboard** → Según rol asignado
+
+### Magic Link Login
+
+- Sin contraseñas, más seguro
+- Tokens de un solo uso (15 min expiración)
+- Links enviados por Gmail
+- Sesión persistente
+
+## 👥 Roles y Permisos
+
+| Funcionalidad | Admin | Comercial |
+|---------------|-------|-----------|
+| Panel Admin | ✅ | ❌ |
+| Gestionar Comerciales | ✅ | ❌ |
+| Ver Todas las Cotizaciones | ✅ | ❌ |
+| Usar Simulador | ✅ | ✅ |
+| Ver Propias Cotizaciones | ✅ | ✅ |
+| Generar PDF | ✅ | ✅ |
+
+## 📊 Base de Datos
+
+### Tablas Principales
+
+- **user_profiles**: Usuarios (admin/comercial)
+- **comercial_invitations**: Invitaciones pendientes
+- **quotations**: Cotizaciones generadas
+- **login_tokens**: Tokens de magic link
 
 Ver schema: `supabase/schema.sql`
 
+## 🎨 Branding
+
+- Logo Tikin oficial en SVG
+- Paleta de colores corporativa
+- Diseño profesional responsive
+- PDF con branding completo
+
 ## 📈 Estado del Proyecto
 
-**Versión 1.0 - Fase 1 Completa** ✅
+**Versión Actual: 2.0** ✅
 
+- ✅ Sistema de autenticación con Magic Links
+- ✅ Gestión completa de comerciales e invitaciones
+- ✅ Panel de administración
+- ✅ Dashboard comercial
 - ✅ Calculadora de parafiscales
-- ✅ Sistema de cotización con captura de datos
-- ✅ Generación de PDF profesional con branding Tikin
-- ✅ Integración con Supabase
-- ✅ Cálculo automático de comisión Tikin
-- ✅ Ready for production deployment
+- ✅ Generación de PDF profesional
+- ✅ Sistema de emails con Gmail
+- ✅ Integración completa con Supabase
+- ✅ Ready for production
 
-## 📝 Requisitos del Sistema
+## 🔧 Desarrollo
 
-- Node.js 18+ (recomendado v24)
-- npm 9+
-- Navegadores modernos (Chrome, Firefox, Safari, Edge)
+### Scripts Disponibles
 
-## 📄 Licencia
+```bash
+npm run dev          # Desarrollo
+npm run build        # Build producción
+npm run start        # Servidor producción
+npm run lint         # Linter
+```
+
+### Testing
+
+```bash
+# Probar flujo completo
+1. Login con magic link
+2. Crear invitación
+3. Aceptar invitación
+4. Generar cotización
+5. Verificar en Supabase
+```
+
+## 🐛 Troubleshooting
+
+Ver sección de troubleshooting en:
+- [SUPABASE_SETUP.md](SUPABASE_SETUP.md#troubleshooting)
+- [DEPLOYMENT.md](DEPLOYMENT.md#troubleshooting)
+
+## 📝 Licencia
 
 Proyecto interno de Tikin
 
