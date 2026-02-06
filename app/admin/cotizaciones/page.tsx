@@ -165,24 +165,24 @@ export default function CotizacionesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-[1600px] mx-auto">
+    <div className="min-h-screen bg-tikin-dark-50 p-8">
+      <div className="max-w-[1800px] mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+        <div className="mb-8 border-b border-tikin-dark-200 pb-6">
+          <h1 className="text-3xl font-bold text-tikin-dark-950 mb-2 tracking-tight">
             Gestión de Cotizaciones
           </h1>
-          <p className="text-gray-600">
+          <p className="text-tikin-dark-600">
             Panel de administración de cotizaciones generadas
           </p>
         </div>
 
         {/* Filtros */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Filtro por empresa */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-tikin-dark-700 mb-2">
                 Buscar por empresa
               </label>
               <input
@@ -190,19 +190,19 @@ export default function CotizacionesPage() {
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
                 placeholder="Nombre de la empresa..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
+                className="w-full px-4 py-2 border border-tikin-dark-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
               />
             </div>
 
             {/* Filtro por estado */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-tikin-dark-700 mb-2">
                 Estado de cotización
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
+                className="w-full px-4 py-2 border border-tikin-dark-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
               >
                 <option value="all">Todas</option>
                 <option value="pending">Pendientes</option>
@@ -214,9 +214,9 @@ export default function CotizacionesPage() {
 
           {/* Resumen de filtros */}
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Mostrando <span className="font-semibold text-gray-900">{filteredQuotations.length}</span> de{' '}
-              <span className="font-semibold text-gray-900">{quotations.length}</span> cotizaciones
+            <p className="text-sm text-tikin-dark-600">
+              Mostrando <span className="font-semibold text-tikin-dark-950">{filteredQuotations.length}</span> de{' '}
+              <span className="font-semibold text-tikin-dark-950">{quotations.length}</span> cotizaciones
             </p>
             {(companyFilter || statusFilter !== 'all') && (
               <button
@@ -224,7 +224,7 @@ export default function CotizacionesPage() {
                   setCompanyFilter('')
                   setStatusFilter('all')
                 }}
-                className="text-sm text-tikin-red hover:text-red-700 font-medium"
+                className="text-sm text-tikin-red hover:text-tikin-red-700 font-medium"
               >
                 Limpiar filtros
               </button>
@@ -233,10 +233,10 @@ export default function CotizacionesPage() {
         </div>
 
         {/* Tabla de Cotizaciones */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 overflow-hidden">
           {filteredQuotations.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-gray-500">
+              <p className="text-tikin-dark-500">
                 {quotations.length === 0
                   ? 'No hay cotizaciones registradas'
                   : 'No se encontraron cotizaciones con los filtros aplicados'}
@@ -245,56 +245,56 @@ export default function CotizacionesPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-tikin-dark-50 border-b border-tikin-dark-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">
                       Fecha
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">
                       Empresa
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">
                       Comercial
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">
                       Empleados
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">
                       Nómina Mensual
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">
                       % Comisión
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-center text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">
                       Estado
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-tikin-dark-200">
                   {filteredQuotations.map((quotation) => (
-                    <tr key={quotation.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <tr key={quotation.id} className="hover:bg-tikin-dark-50 transition-colors">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-900">
                         {formatDate(quotation.created_at)}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
+                      <td className="px-4 py-4 text-sm text-tikin-dark-900">
                         <div className="font-medium">{quotation.company_name}</div>
                         {quotation.nit && (
-                          <div className="text-xs text-gray-500">NIT: {quotation.nit}</div>
+                          <div className="text-xs text-tikin-dark-500">NIT: {quotation.nit}</div>
                         )}
                       </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
+                      <td className="px-4 py-4 text-sm text-tikin-dark-900">
                         <div className="font-medium">{(quotation as any).user_name || (quotation as any).user_email || 'N/A'}</div>
                         {((quotation as any).user_name && (quotation as any).user_email) && (
-                          <div className="text-xs text-gray-500">{(quotation as any).user_email}</div>
+                          <div className="text-xs text-tikin-dark-500">{(quotation as any).user_email}</div>
                         )}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-900 text-right">
                         {quotation.employee_count}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-900 text-right font-medium">
                         {formatCurrency(quotation.total_payroll)}
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-900 text-right font-medium">
                         {(quotation.commission_percentage * 100).toFixed(2)}%
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
@@ -324,15 +324,15 @@ export default function CotizacionesPage() {
 
         {/* Resumen de totales */}
         {filteredQuotations.length > 0 && (
-          <div className="mt-6 bg-gradient-to-r from-tikin-red to-red-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="mt-6 bg-tikin-red-50 border border-tikin-red-200 rounded-lg shadow-soft p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm text-red-100 mb-1">Total Cotizaciones</p>
-                <p className="text-2xl font-bold">{filteredQuotations.length}</p>
+                <p className="text-sm text-tikin-red-700 mb-1 font-medium">Total Cotizaciones</p>
+                <p className="text-2xl font-bold text-tikin-red">{filteredQuotations.length}</p>
               </div>
               <div>
-                <p className="text-sm text-red-100 mb-1">Empleados Total</p>
-                <p className="text-2xl font-bold">
+                <p className="text-sm text-tikin-red-700 mb-1 font-medium">Empleados Total</p>
+                <p className="text-2xl font-bold text-tikin-red">
                   {filteredQuotations.reduce((sum, q) => sum + q.employee_count, 0).toLocaleString('es-CO')}
                 </p>
               </div>

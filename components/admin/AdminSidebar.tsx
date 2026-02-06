@@ -60,18 +60,18 @@ export default function AdminSidebar() {
   const pathname = usePathname()
 
   return (
-    <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <div className="w-64 bg-tikin-dark-950 border-r border-tikin-dark-800 flex flex-col shadow-soft-lg">
       {/* Logo / Header */}
-      <div className="p-6 border-b border-gray-200">
+      <div className="p-6 border-b border-tikin-dark-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-tikin-red to-red-600 rounded-xl flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-10 h-10 bg-tikin-dark-900 border border-tikin-dark-700 rounded-lg flex items-center justify-center shadow-soft">
+            <svg className="w-5 h-5 text-tikin-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
           <div>
-            <h2 className="font-bold text-gray-900">Tikin Admin</h2>
-            <p className="text-xs text-gray-500">Panel de control</p>
+            <h2 className="font-semibold text-tikin-dark-50 tracking-tight">Tikin Admin</h2>
+            <p className="text-xs text-tikin-dark-400">Panel de control</p>
           </div>
         </div>
       </div>
@@ -84,24 +84,24 @@ export default function AdminSidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                 isActive
-                  ? 'bg-gradient-to-r from-tikin-red to-red-600 text-white shadow-lg'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-tikin-red text-white shadow-soft'
+                  : 'text-tikin-dark-300 hover:bg-tikin-dark-900 hover:text-tikin-dark-50'
               }`}
             >
               {item.icon}
-              <span className="font-medium">{item.name}</span>
+              <span className="font-medium text-sm">{item.name}</span>
             </Link>
           )
         })}
       </nav>
 
       {/* Footer / Logout */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-tikin-dark-800">
         <button
           onClick={signOut}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-tikin-dark-300 hover:bg-tikin-dark-900 hover:text-tikin-red transition-all duration-200"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
@@ -111,7 +111,7 @@ export default function AdminSidebar() {
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
             />
           </svg>
-          <span className="font-medium">Cerrar Sesión</span>
+          <span className="font-medium text-sm">Cerrar Sesión</span>
         </button>
       </div>
     </div>

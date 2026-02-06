@@ -61,28 +61,28 @@ export default async function ComercialDashboardPage() {
     }).format(value)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 max-w-[1800px]">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Mi Dashboard</h1>
-        <p className="text-gray-600 mt-1">
+      <div className="border-b border-tikin-dark-200 pb-6">
+        <h1 className="text-3xl font-bold text-tikin-dark-950 tracking-tight">Mi Dashboard</h1>
+        <p className="text-tikin-dark-600 mt-2">
           Bienvenido de vuelta, {profile?.full_name || profile?.email}
         </p>
       </div>
 
       {/* Métricas de Cotizaciones */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Resumen de Mis Cotizaciones</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <h2 className="text-xl font-semibold text-tikin-dark-950 mb-5 tracking-tight">Resumen de Mis Cotizaciones</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Enviadas */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 p-6 hover:shadow-soft-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Enviadas</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{totalEnviadas || 0}</p>
+                <p className="text-sm font-medium text-tikin-dark-600">Total Enviadas</p>
+                <p className="text-3xl font-bold text-tikin-dark-950 mt-2">{totalEnviadas || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-12 h-12 bg-tikin-dark-100 border border-tikin-dark-200 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-tikin-dark-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -95,14 +95,14 @@ export default async function ComercialDashboardPage() {
           </div>
 
           {/* Aprobadas */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 p-6 hover:shadow-soft-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Aprobadas</p>
-                <p className="text-3xl font-bold text-green-600 mt-2">{totalAprobadas || 0}</p>
+                <p className="text-sm font-medium text-tikin-dark-600">Aprobadas</p>
+                <p className="text-3xl font-bold text-tikin-dark-950 mt-2">{totalAprobadas || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-12 h-12 bg-green-50 border border-green-200 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -115,14 +115,14 @@ export default async function ComercialDashboardPage() {
           </div>
 
           {/* Rechazadas */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 p-6 hover:shadow-soft-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Rechazadas</p>
-                <p className="text-3xl font-bold text-red-600 mt-2">{totalRechazadas || 0}</p>
+                <p className="text-sm font-medium text-tikin-dark-600">Rechazadas</p>
+                <p className="text-3xl font-bold text-tikin-dark-950 mt-2">{totalRechazadas || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-12 h-12 bg-tikin-red-50 border border-tikin-red-200 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-tikin-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -135,14 +135,14 @@ export default async function ComercialDashboardPage() {
           </div>
 
           {/* Pendientes */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 p-6 hover:shadow-soft-md transition-all">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Pendientes</p>
-                <p className="text-3xl font-bold text-yellow-600 mt-2">{totalPendientes || 0}</p>
+                <p className="text-sm font-medium text-tikin-dark-600">Pendientes</p>
+                <p className="text-3xl font-bold text-tikin-dark-950 mt-2">{totalPendientes || 0}</p>
               </div>
-              <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="w-12 h-12 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -158,46 +158,46 @@ export default async function ComercialDashboardPage() {
 
       {/* Totales de Cotizaciones Aprobadas */}
       <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-4">
+        <h2 className="text-xl font-semibold text-tikin-dark-950 mb-5 tracking-tight">
           Totales de Cotizaciones Aprobadas ({totalAprobadas || 0})
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Total Nómina */}
-          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border-2 border-purple-200 p-6">
-            <p className="text-sm font-medium text-purple-700 mb-2">Total Nómina</p>
-            <p className="text-2xl font-bold text-purple-900">{formatCurrency(totalNomina)}</p>
+          <div className="bg-white rounded-lg border border-tikin-dark-200 p-6 shadow-soft hover:shadow-soft-md transition-all">
+            <p className="text-sm font-medium text-tikin-dark-600 mb-2">Total Nómina</p>
+            <p className="text-2xl font-bold text-tikin-dark-950">{formatCurrency(totalNomina)}</p>
           </div>
 
           {/* Total Bonos */}
-          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 p-6">
-            <p className="text-sm font-medium text-blue-700 mb-2">Total Bonos</p>
-            <p className="text-2xl font-bold text-blue-900">{formatCurrency(totalBonos)}</p>
+          <div className="bg-white rounded-lg border border-tikin-dark-200 p-6 shadow-soft hover:shadow-soft-md transition-all">
+            <p className="text-sm font-medium text-tikin-dark-600 mb-2">Total Bonos</p>
+            <p className="text-2xl font-bold text-tikin-dark-950">{formatCurrency(totalBonos)}</p>
           </div>
 
           {/* Total Ahorros */}
-          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 p-6">
-            <p className="text-sm font-medium text-green-700 mb-2">Total Ahorros</p>
-            <p className="text-2xl font-bold text-green-900">{formatCurrency(totalAhorros)}</p>
+          <div className="bg-white rounded-lg border border-tikin-dark-200 p-6 shadow-soft hover:shadow-soft-md transition-all">
+            <p className="text-sm font-medium text-tikin-dark-600 mb-2">Total Ahorros</p>
+            <p className="text-2xl font-bold text-tikin-dark-950">{formatCurrency(totalAhorros)}</p>
           </div>
 
           {/* % Comisión Tikin Promedio */}
-          <div className="bg-gradient-to-br from-tikin-red/10 to-red-100 rounded-xl border-2 border-red-200 p-6">
-            <p className="text-sm font-medium text-red-700 mb-2">% Comisión Tikin</p>
-            <p className="text-2xl font-bold text-red-900">{avgComisionTikin.toFixed(2)}%</p>
+          <div className="bg-tikin-red-50 rounded-lg border border-tikin-red-200 p-6 shadow-soft hover:shadow-soft-md transition-all">
+            <p className="text-sm font-medium text-tikin-red-700 mb-2">% Comisión Tikin</p>
+            <p className="text-2xl font-bold text-tikin-red">{avgComisionTikin.toFixed(2)}%</p>
           </div>
         </div>
       </div>
 
       {/* Acciones Rápidas */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Acciones Rápidas</h2>
+      <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 p-6">
+        <h2 className="text-xl font-semibold text-tikin-dark-950 mb-5 tracking-tight">Acciones Rápidas</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <a
             href="/bonos"
-            className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-tikin-red hover:bg-red-50 transition-all duration-200 group"
+            className="flex items-center gap-4 p-5 rounded-lg border border-tikin-dark-200 hover:border-tikin-red hover:bg-tikin-red-50 transition-all duration-200 group"
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-tikin-red to-red-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-11 h-11 bg-tikin-red-50 border border-tikin-red-200 rounded-lg flex items-center justify-center group-hover:bg-tikin-red group-hover:border-tikin-red transition-all">
+              <svg className="w-5 h-5 text-tikin-red group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -207,17 +207,17 @@ export default async function ComercialDashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Nueva Cotización</p>
-              <p className="text-sm text-gray-600">Crear una nueva cotización</p>
+              <p className="font-semibold text-tikin-dark-950 group-hover:text-tikin-red transition-colors">Nueva Cotización</p>
+              <p className="text-sm text-tikin-dark-600">Crear una nueva cotización</p>
             </div>
           </a>
 
           <a
             href="/comercial/cotizaciones"
-            className="flex items-center gap-4 p-4 rounded-xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-200 group"
+            className="flex items-center gap-4 p-5 rounded-lg border border-tikin-dark-200 hover:border-tikin-dark-400 hover:bg-tikin-dark-50 transition-all duration-200 group"
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="w-11 h-11 bg-tikin-dark-100 border border-tikin-dark-200 rounded-lg flex items-center justify-center group-hover:bg-tikin-dark-900 group-hover:border-tikin-dark-700 transition-all">
+              <svg className="w-5 h-5 text-tikin-dark-700 group-hover:text-white transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -227,8 +227,8 @@ export default async function ComercialDashboardPage() {
               </svg>
             </div>
             <div>
-              <p className="font-semibold text-gray-900">Ver Mis Cotizaciones</p>
-              <p className="text-sm text-gray-600">Todas tus cotizaciones creadas</p>
+              <p className="font-semibold text-tikin-dark-950 group-hover:text-tikin-dark-950 transition-colors">Ver Mis Cotizaciones</p>
+              <p className="text-sm text-tikin-dark-600">Todas tus cotizaciones creadas</p>
             </div>
           </a>
         </div>

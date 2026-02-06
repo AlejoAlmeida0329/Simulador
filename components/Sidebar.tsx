@@ -61,11 +61,11 @@ export function Sidebar() {
 
   if (loading || !profile) {
     return (
-      <div className="w-64 bg-gradient-to-b from-gray-900 to-gray-800 min-h-screen p-4">
+      <div className="w-64 bg-tikin-dark-950 min-h-screen p-4 border-r border-tikin-dark-800">
         <div className="animate-pulse space-y-4">
-          <div className="h-12 bg-gray-700 rounded"></div>
-          <div className="h-10 bg-gray-700 rounded"></div>
-          <div className="h-10 bg-gray-700 rounded"></div>
+          <div className="h-12 bg-tikin-dark-900 rounded-lg"></div>
+          <div className="h-10 bg-tikin-dark-900 rounded-lg"></div>
+          <div className="h-10 bg-tikin-dark-900 rounded-lg"></div>
         </div>
       </div>
     )
@@ -145,47 +145,47 @@ export function Sidebar() {
   const menuItems = profile.role === 'admin' ? adminMenuItems : userMenuItems
 
   return (
-    <div className="w-64 bg-gradient-to-b from-gray-900 to-gray-800 min-h-screen flex flex-col shadow-2xl">
+    <div className="w-64 bg-tikin-dark-950 min-h-screen flex flex-col border-r border-tikin-dark-800 shadow-soft-lg">
       {/* Header del Sidebar */}
-      <div className="p-6 border-b border-gray-700">
+      <div className="p-6 border-b border-tikin-dark-800">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-gradient-to-br from-tikin-red to-red-600 rounded-xl flex items-center justify-center shadow-lg">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="w-10 h-10 bg-tikin-dark-900 border border-tikin-dark-700 rounded-lg flex items-center justify-center shadow-soft">
+            <svg className="w-5 h-5 text-tikin-red" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
           </div>
           <div>
-            <h2 className="text-white font-bold text-lg">Tikin</h2>
-            <p className="text-xs text-gray-400">Simulador de Bonos</p>
+            <h2 className="text-tikin-dark-50 font-semibold tracking-tight">Tikin</h2>
+            <p className="text-xs text-tikin-dark-400">Simulador de Bonos</p>
           </div>
         </div>
 
         {/* Info del usuario */}
-        <div className="bg-gray-800 rounded-xl p-3 border border-gray-700">
+        <div className="bg-tikin-dark-900 rounded-lg p-3 border border-tikin-dark-800 shadow-soft">
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white text-sm font-bold">
+            <div className="w-8 h-8 bg-tikin-red rounded-lg flex items-center justify-center">
+              <span className="text-white text-sm font-semibold">
                 {user?.email?.charAt(0).toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white text-sm font-medium truncate">
+              <p className="text-tikin-dark-50 text-sm font-medium truncate">
                 {user?.email?.split('@')[0]}
               </p>
-              <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+              <p className="text-xs text-tikin-dark-400 truncate">{user?.email}</p>
             </div>
           </div>
           {profile.role === 'admin' && (
             <div className="flex items-center gap-1 text-xs">
-              <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
-              <span className="text-yellow-400 font-semibold">Administrador</span>
+              <div className="w-2 h-2 bg-tikin-red rounded-full"></div>
+              <span className="text-tikin-red font-semibold">Administrador</span>
             </div>
           )}
         </div>
       </div>
 
       {/* Menú de navegación */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-1">
         {menuItems.map((item) => {
           const isActive = pathname === item.href
           return (
@@ -193,20 +193,20 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={`
-                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200
                 ${
                   isActive
-                    ? 'bg-gradient-to-r from-tikin-red to-red-600 text-white shadow-lg scale-105'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    ? 'bg-tikin-red text-white shadow-soft'
+                    : 'text-tikin-dark-300 hover:bg-tikin-dark-900 hover:text-tikin-dark-50'
                 }
               `}
             >
-              <div className={isActive ? 'text-white' : 'text-gray-400'}>
+              <div className={isActive ? 'text-white' : 'text-tikin-dark-400'}>
                 {item.icon}
               </div>
               <span className="font-medium text-sm">{item.name}</span>
               {item.badge && (
-                <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                <span className="ml-auto bg-tikin-dark-800 text-tikin-red text-xs px-2 py-0.5 rounded-full font-semibold">
                   {item.badge}
                 </span>
               )}
@@ -216,10 +216,10 @@ export function Sidebar() {
       </nav>
 
       {/* Footer - Cerrar sesión */}
-      <div className="p-4 border-t border-gray-700">
+      <div className="p-4 border-t border-tikin-dark-800">
         <button
           onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-red-900 hover:text-white transition-all duration-200"
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-tikin-dark-300 hover:bg-tikin-dark-900 hover:text-tikin-red transition-all duration-200"
         >
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

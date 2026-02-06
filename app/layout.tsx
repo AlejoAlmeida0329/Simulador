@@ -17,14 +17,31 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className="bg-gray-50 min-h-screen flex flex-col">
+      <body className="bg-tikin-dark-50 min-h-screen flex flex-col antialiased">
         <AuthProvider>
           <Header />
-          <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+          <main className="flex-1 w-full">
             {children}
           </main>
           <Footer />
-          <Toaster />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: {
+                background: '#0A0A0A',
+                color: '#fff',
+                borderRadius: '12px',
+                padding: '16px',
+              },
+              success: {
+                iconTheme: {
+                  primary: '#DC2626',
+                  secondary: '#fff',
+                },
+              },
+            }}
+          />
         </AuthProvider>
       </body>
     </html>

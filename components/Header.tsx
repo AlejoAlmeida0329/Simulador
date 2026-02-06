@@ -13,16 +13,16 @@ export function Header() {
   const isAuthPage = pathname === '/login' || pathname === '/solicitud-acceso' || pathname === '/pending-approval'
 
   return (
-    <header className="bg-white border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-6">
-            <Link href={user ? '/dashboard' : '/bonos'}>
+    <header className="bg-white border-b border-tikin-dark-200 shadow-soft">
+      <div className="w-full px-8 py-5">
+        <div className="flex items-center justify-between max-w-[2000px] mx-auto">
+          <div className="flex items-center space-x-8">
+            <Link href={user ? '/dashboard' : '/bonos'} className="transition-opacity hover:opacity-80">
               <TikinLogo size="md" variant="dark" />
             </Link>
-            <div className="hidden md:block h-8 w-px bg-gray-200"></div>
+            <div className="hidden md:block h-8 w-px bg-tikin-dark-200"></div>
             <div className="hidden md:block">
-              <h1 className="text-xl font-semibold text-gray-900">
+              <h1 className="text-xl font-semibold text-tikin-dark-950 tracking-tight">
                 Simulador de Bonos Tikin
               </h1>
             </div>
@@ -33,14 +33,14 @@ export function Header() {
             {user ? (
               <Link
                 href="/dashboard"
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition"
+                className="px-5 py-2.5 text-sm font-medium text-tikin-dark-700 hover:text-tikin-dark-950 hover:bg-tikin-dark-50 rounded-lg transition-all"
               >
                 Dashboard
               </Link>
             ) : !isAuthPage ? (
               <Link
                 href="/login"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                className="px-6 py-2.5 text-sm font-semibold text-white bg-tikin-red hover:bg-tikin-red-700 rounded-lg transition-all shadow-soft hover:shadow-soft-md"
               >
                 Ingresar
               </Link>
