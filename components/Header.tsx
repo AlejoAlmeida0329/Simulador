@@ -9,6 +9,10 @@ export function Header() {
   const { user } = useAuth()
   const pathname = usePathname()
 
+  // Ocultar Header en layouts con sidebar (admin/comercial tienen su propia navegación)
+  const isDashboardRoute = pathname?.startsWith('/admin') || pathname?.startsWith('/comercial')
+  if (isDashboardRoute) return null
+
   // Páginas donde no se debe mostrar el botón de login
   const isAuthPage = pathname === '/login' || pathname === '/solicitud-acceso' || pathname === '/pending-approval'
 

@@ -7,14 +7,13 @@
 
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/server'
-import AdminSidebar from '@/components/admin/AdminSidebar'
+import { AdminSidebarNav } from '@/components/admin/AdminSidebarNav'
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // Verificar que el usuario sea admin (lanza error si no lo es)
   try {
     await requireAdmin()
   } catch (error) {
@@ -23,13 +22,9 @@ export default async function AdminLayout({
 
   return (
     <div className="flex h-screen bg-tikin-dark-50">
-      {/* Sidebar */}
-      <AdminSidebar />
-
-      {/* Main Content */}
+      <AdminSidebarNav />
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main id="main-content" className="flex-1 overflow-y-auto p-8 md:p-8 pt-16 md:pt-8">
           {children}
         </main>
       </div>

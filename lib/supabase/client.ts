@@ -25,7 +25,7 @@ function getSupabaseClient(): SupabaseClient {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
   if (!isSupabaseConfigured()) {
-    console.warn('⚠️ Supabase credentials not configured. Database features will be disabled.')
+    // Supabase credentials not configured - database features will be disabled
   }
 
   // Usar createBrowserClient para correcto manejo de cookies en el navegador

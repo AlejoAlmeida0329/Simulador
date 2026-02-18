@@ -30,20 +30,16 @@ export default function CallbackHashPage() {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
         if (sessionError) {
-          console.error('❌ Error obteniendo sesión:', sessionError)
           setError(sessionError.message)
           setTimeout(() => router.push('/login?error=session_failed'), 2000)
           return
         }
 
         if (!session) {
-          console.error('❌ No se obtuvo sesión')
           setError('No se pudo establecer la sesión')
           setTimeout(() => router.push('/login?error=no_session'), 2000)
           return
         }
-
-        console.log('✅ Sesión obtenida desde hash en cliente')
 
         // IMPORTANTE: Establecer la sesión en el servidor para que el middleware la vea
         const response = await fetch('/api/auth/set-session', {
@@ -60,13 +56,10 @@ export default function CallbackHashPage() {
         const result = await response.json()
 
         if (!response.ok || !result.success) {
-          console.error('❌ Error estableciendo sesión server-side:', result.error)
           setError(result.error || 'Error estableciendo sesión')
           setTimeout(() => router.push('/login?error=session_failed'), 2000)
           return
         }
-
-        console.log(`✅ Sesión establecida server-side | Usuario: ${result.user.email} | Rol: ${result.user.role}`)
 
         // Ahora sí redirigir - el middleware verá las cookies
         window.location.href = result.redirectPath
@@ -82,12 +75,13 @@ export default function CallbackHashPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center">
-      <div className="text-center">
+      <div className="text-center" role="status" aria-live="polite">
         <div className="inline-block p-4 bg-gradient-to-br from-tikin-red to-red-600 rounded-2xl shadow-lg mb-4">
           <svg
             className="w-12 h-12 text-white animate-spin"
             fill="none"
             viewBox="0 0 24 24"
+            aria-hidden="true"
           >
             <circle
               className="opacity-25"

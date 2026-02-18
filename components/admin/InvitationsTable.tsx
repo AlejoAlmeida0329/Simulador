@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { ComercialInvitationWithAdmin } from '@/types/invitations'
 import { cancelInvitation, resendInvitation } from '@/lib/actions/comerciales'
 import { useRouter } from 'next/navigation'
+import { notify } from '@/lib/utils/notifications'
 
 interface Props {
   invitations: ComercialInvitationWithAdmin[]
@@ -26,7 +27,7 @@ export function InvitationsTable({ invitations }: Props) {
     if (result.success) {
       router.refresh()
     } else {
-      alert(result.error || 'Error al cancelar')
+      notify.error(result.error || 'Error al cancelar')
     }
 
     setLoading(null)
@@ -37,10 +38,10 @@ export function InvitationsTable({ invitations }: Props) {
     const result = await resendInvitation(invitationId)
 
     if (result.success) {
-      alert('Invitación reenviada correctamente')
+      notify.success('Invitación reenviada correctamente')
       router.refresh()
     } else {
-      alert(result.error || 'Error al reenviar')
+      notify.error(result.error || 'Error al reenviar')
     }
 
     setLoading(null)
@@ -49,7 +50,7 @@ export function InvitationsTable({ invitations }: Props) {
   const copyInvitationLink = (token: string) => {
     const link = `${window.location.origin}/auth/accept-invitation?token=${token}`
     navigator.clipboard.writeText(link)
-    alert('Link copiado al portapapeles')
+    notify.success('Link copiado al portapapeles')
   }
 
   return (
@@ -57,12 +58,12 @@ export function InvitationsTable({ invitations }: Props) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-200">
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Invitado</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Empresa</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Invitado por</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Enviada</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Expira</th>
-            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Acciones</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Invitado</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Empresa</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Invitado por</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Enviada</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Expira</th>
+            <th scope="col" className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Acciones</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">

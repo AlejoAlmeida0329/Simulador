@@ -3,26 +3,32 @@
 /**
  * COMERCIAL - Mis Cotizaciones
  *
- * Panel para ver las cotizaciones del comercial
+ * Panel para ver las cotizaciones del comercial (Bonos 2.0)
  * Incluye filtros por empresa y estado, botón para crear nueva cotización
  */
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { QuotationRecord } from '@/types/quotation'
+import { updateCotizacionStatus } from '@/lib/supabase/quotations'
 import { notify } from '@/lib/utils/notifications'
 import { useRouter } from 'next/navigation'
+import { Plus, FileText, Search } from 'lucide-react'
+import { Spinner } from '@/components/ui/spinner'
+import { PageHeader } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
+
+type StatusType = 'all' | 'pending' | 'accepted' | 'rejected'
 
 export default function MisCotizacionesPage() {
   const router = useRouter()
   const [quotations, setQuotations] = useState<QuotationRecord[]>([])
   const [filteredQuotations, setFilteredQuotations] = useState<QuotationRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState<string | null>(null)
 
   // Filtros
   const [companyFilter, setCompanyFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusType>('all')
 
   useEffect(() => {
     loadQuotations()
@@ -32,14 +38,12 @@ export default function MisCotizacionesPage() {
   useEffect(() => {
     let filtered = [...quotations]
 
-    // Filtro por empresa
     if (companyFilter.trim()) {
       filtered = filtered.filter(q =>
         q.company_name.toLowerCase().includes(companyFilter.toLowerCase())
       )
     }
 
-    // Filtro por estado
     if (statusFilter !== 'all') {
       filtered = filtered.filter(q => q.status === statusFilter)
     }
@@ -52,163 +56,118 @@ export default function MisCotizacionesPage() {
       setLoading(true)
       const supabase = createClient()
 
-      // Obtener usuario actual
       const { data: { user }, error: userError } = await supabase.auth.getUser()
 
       if (userError || !user) {
         throw new Error('Usuario no autenticado')
       }
 
-      setUserId(user.id)
-
-      // Cargar cotizaciones del usuario
       const { data, error } = await supabase
-        .from('quotations')
+        .from('quotations_bonos2')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       setQuotations(data || [])
       setFilteredQuotations(data || [])
     } catch (error: any) {
       notify.error('Error al cargar las cotizaciones')
-      console.error(error)
     } finally {
       setLoading(false)
     }
   }
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(value)
+  const handleStatusChange = async (id: string, newStatus: QuotationRecord['status']) => {
+    const result = await updateCotizacionStatus(id, newStatus)
+    if (result.success) {
+      notify.success('Estado actualizado')
+      setQuotations(prev => prev.map(q => q.id === id ? { ...q, status: newStatus } : q))
+    } else {
+      notify.error(result.error || 'Error al actualizar')
+    }
   }
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(value)
 
-  const getStatusBadge = (status?: string) => {
-    const styles = {
-      pending: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-      accepted: 'bg-green-100 text-green-800 border-green-300',
-      rejected: 'bg-red-100 text-red-800 border-red-300',
-    }
+  const formatDate = (date: string) =>
+    new Date(date).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' })
 
-    const labels = {
-      pending: 'Pendiente',
-      accepted: 'Aceptada',
-      rejected: 'Rechazada',
-    }
-
-    const statusKey = status || 'pending'
-    const style = styles[statusKey as keyof typeof styles] || styles.pending
-    const label = labels[statusKey as keyof typeof labels] || 'Pendiente'
-
-    return (
-      <span className={`px-2 py-1 text-xs font-semibold rounded-full border ${style}`}>
-        {label}
-      </span>
-    )
+  const statusSelectClass = (status?: string) => {
+    if (status === 'accepted') return 'bg-green-100 text-green-800 border-green-300'
+    if (status === 'rejected') return 'bg-red-100 text-red-800 border-red-300'
+    return 'bg-yellow-100 text-yellow-800 border-yellow-300' // pending (default)
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tikin-red mx-auto"></div>
-          <p className="mt-4 text-gray-600">Cargando cotizaciones...</p>
+          <Spinner size="lg" className="mx-auto" />
+          <p className="mt-4 text-tikin-dark-600">Cargando cotizaciones...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-[1600px] mx-auto">
+    <div className="space-y-8 max-w-[1800px]">
         {/* Header con botón de Nueva Cotización */}
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Mis Cotizaciones
-            </h1>
-            <p className="text-gray-600">
-              Todas las cotizaciones que has creado
-            </p>
-          </div>
+        <PageHeader title="Mis Cotizaciones" description="Todas las cotizaciones que has creado">
           <button
             onClick={() => router.push('/bonos')}
-            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-tikin-red to-red-600 text-white font-semibold rounded-xl hover:shadow-lg transition-all duration-200 hover:scale-105"
+            className="bg-tikin-red text-white rounded-lg font-semibold hover:bg-red-700 transition-colors px-6 py-3 flex items-center gap-2"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
+            <Plus className="w-5 h-5" />
             Nueva Cotización
           </button>
-        </div>
+        </PageHeader>
 
         {/* Filtros */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Filtro por empresa */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="comercial-company-filter" className="block text-sm font-medium text-tikin-dark-700 mb-2">
                 Buscar por empresa
               </label>
               <input
                 type="text"
+                id="comercial-company-filter"
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
                 placeholder="Nombre de la empresa..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
+                aria-label="Buscar por nombre de empresa"
+                className="w-full px-4 py-2 border border-tikin-dark-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
               />
             </div>
-
-            {/* Filtro por estado */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="comercial-status-filter" className="block text-sm font-medium text-tikin-dark-700 mb-2">
                 Estado de cotización
               </label>
               <select
+                id="comercial-status-filter"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
+                onChange={(e) => setStatusFilter(e.target.value as StatusType)}
+                aria-label="Filtrar por estado de cotización"
+                className="w-full px-4 py-2 border border-tikin-dark-300 rounded-lg focus:ring-2 focus:ring-tikin-red focus:border-tikin-red"
               >
                 <option value="all">Todas</option>
-                <option value="pending">Pendientes</option>
-                <option value="accepted">Aceptadas</option>
-                <option value="rejected">Rechazadas</option>
+                <option value="pending">Pendiente</option>
+                <option value="accepted">Aprobada</option>
+                <option value="rejected">Rechazada</option>
               </select>
             </div>
           </div>
-
-          {/* Resumen de filtros */}
           <div className="mt-4 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Mostrando <span className="font-semibold text-gray-900">{filteredQuotations.length}</span> de{' '}
-              <span className="font-semibold text-gray-900">{quotations.length}</span> cotizaciones
+            <p className="text-sm text-tikin-dark-600">
+              Mostrando <span className="font-semibold text-tikin-dark-950">{filteredQuotations.length}</span> de{' '}
+              <span className="font-semibold text-tikin-dark-950">{quotations.length}</span> cotizaciones
             </p>
             {(companyFilter || statusFilter !== 'all') && (
               <button
-                onClick={() => {
-                  setCompanyFilter('')
-                  setStatusFilter('all')
-                }}
+                onClick={() => { setCompanyFilter(''); setStatusFilter('all') }}
                 className="text-sm text-tikin-red hover:text-red-700 font-medium"
               >
                 Limpiar filtros
@@ -218,74 +177,77 @@ export default function MisCotizacionesPage() {
         </div>
 
         {/* Tabla de Cotizaciones */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-soft border border-tikin-dark-200 overflow-hidden">
           {filteredQuotations.length === 0 ? (
             <div className="p-12 text-center">
-              <p className="text-gray-500">
-                {quotations.length === 0
-                  ? 'No has creado cotizaciones todavía'
-                  : 'No se encontraron cotizaciones con los filtros aplicados'}
-              </p>
-              {quotations.length === 0 && (
-                <button
-                  onClick={() => router.push('/bonos')}
-                  className="mt-4 px-6 py-2 bg-tikin-red text-white rounded-lg hover:bg-red-700 transition-colors"
-                >
-                  Crear primera cotización
-                </button>
+              {quotations.length === 0 ? (
+                <EmptyState
+                  icon={FileText}
+                  title="No has creado cotizaciones todavía"
+                  description="Crea tu primera cotización para empezar"
+                  actionLabel="Crear primera cotización"
+                  onAction={() => router.push('/bonos')}
+                />
+              ) : (
+                <p className="text-tikin-dark-500">
+                  No se encontraron cotizaciones con los filtros aplicados
+                </p>
               )}
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-tikin-dark-50 border-b border-tikin-dark-200">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Fecha
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Empresa
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Empleados
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nómina Mensual
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      % Comisión
-                    </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
-                    </th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">Fecha</th>
+                    <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">Empresa</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">Empleados</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">Compensación Total</th>
+                    <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">Comisión Tikin</th>
+                    <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">Split</th>
+                    <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-tikin-dark-600 uppercase tracking-wider">Estado</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredQuotations.map((quotation) => (
-                    <tr key={quotation.id} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatDate(quotation.created_at)}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-gray-900">
-                        <div className="font-medium">{quotation.company_name}</div>
-                        {quotation.nit && (
-                          <div className="text-xs text-gray-500">NIT: {quotation.nit}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                        {quotation.employee_count}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                        {formatCurrency(quotation.total_payroll)}
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                        {(quotation.commission_percentage * 100).toFixed(2)}%
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
-                        {getStatusBadge(quotation.status)}
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="bg-white divide-y divide-tikin-dark-200">
+                  {filteredQuotations.map((q) => {
+                    const commission = q.tikin_commission as any
+                    const comisionTotal = commission?.totalConIva || 0
+                    return (
+                      <tr key={q.id} className="hover:bg-tikin-dark-50 transition-colors">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-950">
+                          {formatDate(q.created_at)}
+                        </td>
+                        <td className="px-4 py-4 text-sm text-tikin-dark-950">
+                          <div className="font-medium">{q.company_name}</div>
+                          {q.nit && <div className="text-xs text-tikin-dark-500">NIT: {q.nit}</div>}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-950 text-right">
+                          {q.total_employees}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-950 text-right font-medium">
+                          {formatCurrency(q.total_compensation)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-950 text-right font-medium">
+                          {formatCurrency(comisionTotal)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-tikin-dark-950 text-center">
+                          <span className="text-xs bg-tikin-dark-100 px-2 py-1 rounded">{q.split_salary_pct}/{q.split_bonus_pct}</span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-center">
+                          <select
+                            value={q.status}
+                            onChange={(e) => handleStatusChange(q.id, e.target.value as any)}
+                            aria-label={`Cambiar estado de ${q.company_name}`}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-lg border-2 focus:outline-none focus:ring-2 focus:ring-tikin-red transition-all ${statusSelectClass(q.status)}`}
+                          >
+                            <option value="pending">Pendiente</option>
+                            <option value="accepted">Aprobada</option>
+                            <option value="rejected">Rechazada</option>
+                          </select>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -294,22 +256,21 @@ export default function MisCotizacionesPage() {
 
         {/* Resumen de totales */}
         {filteredQuotations.length > 0 && (
-          <div className="mt-6 bg-gradient-to-r from-tikin-red to-red-600 rounded-xl shadow-lg p-6 text-white">
+          <div className="mt-6 bg-tikin-dark-50 border border-tikin-dark-200 rounded-lg shadow-soft p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm text-red-100 mb-1">Total Cotizaciones</p>
-                <p className="text-2xl font-bold">{filteredQuotations.length}</p>
+                <p className="text-sm text-tikin-dark-600 font-medium mb-1">Total Cotizaciones</p>
+                <p className="text-2xl font-bold text-tikin-dark-950">{filteredQuotations.length}</p>
               </div>
               <div>
-                <p className="text-sm text-red-100 mb-1">Empleados Total</p>
-                <p className="text-2xl font-bold">
-                  {filteredQuotations.reduce((sum, q) => sum + q.employee_count, 0).toLocaleString('es-CO')}
+                <p className="text-sm text-tikin-dark-600 font-medium mb-1">Empleados Total</p>
+                <p className="text-2xl font-bold text-tikin-dark-950">
+                  {filteredQuotations.reduce((sum, q) => sum + q.total_employees, 0).toLocaleString('es-CO')}
                 </p>
               </div>
             </div>
           </div>
         )}
-      </div>
     </div>
   )
 }

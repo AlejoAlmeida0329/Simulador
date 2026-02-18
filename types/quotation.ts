@@ -1,41 +1,62 @@
+/**
+ * Types for Quotation persistence in Supabase
+ */
+
 export interface QuotationRecord {
-  id?: string
-  created_at?: string
-  user_id?: string  // Usuario que creó la cotización
+  id: string
+  created_at: string
+  updated_at: string
+  user_id: string
+
+  // Company data
   company_name: string
-  contact_name: string
-  email: string
-  phone: string
-  nit?: string
-  employee_count: number
-  total_payroll: number
+  contact_name: string | null
+  email: string | null
+  phone: string | null
+  nit: string | null
   arl_risk_level: string
+  obligado_parafiscales: boolean
 
-  // Datos del escenario Tikin
-  salary_percentage: number
-  bonus_percentage: number
-  monthly_bonus_total: number
+  // Configuration
+  split_salary_pct: number
+  split_bonus_pct: number
+  bonus_types_selected: string[]
+  data_input_method: string
 
-  // Ahorros
-  monthly_savings: number
-  annual_savings: number
-  percentage_reduction: number
+  // Totals
+  total_employees: number
+  total_salary: number
+  total_bonuses: number
+  total_compensation: number
 
-  // Comisión Tikin
-  commission_level: number
-  commission_percentage: number
-  base_commission: number
-  iva: number
-  total_commission: number
+  // JSON columns
+  financial_summary: Record<string, unknown> | null
+  tikin_commission: Record<string, unknown> | null
+  savings_estimate: Record<string, unknown> | null
+  lotes_data: Record<string, unknown>[] | null
 
-  // Beneficio neto
-  net_monthly_savings: number
-  net_annual_savings: number
-
-  // Metadata
-  generated_by?: string
-  pdf_filename?: string
-  status?: 'pending' | 'accepted' | 'rejected'
+  // Status
+  status: 'pending' | 'accepted' | 'rejected'
+  notes: string | null
+  pdf_filename: string | null
 }
 
-export type QuotationInsert = Omit<QuotationRecord, 'id' | 'created_at'>
+export type QuotationInsert = Omit<QuotationRecord, 'id' | 'created_at' | 'updated_at'>
+
+/**
+ * Fee configuration record from Supabase
+ */
+export interface FeeConfigRecord {
+  id: string
+  created_at: string
+  updated_at: string
+  updated_by: string | null
+  fee_type: 'mera_liberalidad' | 'alimentacion' | 'dotacion' | 'viaticos' | 'iva'
+  fixed_rate: number | null
+  ranges: Array<{
+    min: number
+    max: number
+    fee: number
+    label: string
+  }> | null
+}

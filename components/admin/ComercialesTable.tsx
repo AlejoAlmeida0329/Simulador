@@ -8,6 +8,7 @@ import { useState } from 'react'
 import type { UserProfile } from '@/types/auth'
 import { updateComercialApproval, deleteComercial } from '@/lib/actions/comerciales'
 import { useRouter } from 'next/navigation'
+import { notify } from '@/lib/utils/notifications'
 
 interface Props {
   comerciales: UserProfile[]
@@ -26,7 +27,7 @@ export function ComercialesTable({ comerciales }: Props) {
     if (result.success) {
       router.refresh()
     } else {
-      alert(result.error || 'Error al aprobar')
+      notify.error(result.error || 'Error al aprobar')
     }
 
     setLoading(null)
@@ -41,7 +42,7 @@ export function ComercialesTable({ comerciales }: Props) {
     if (result.success) {
       router.refresh()
     } else {
-      alert(result.error || 'Error al rechazar')
+      notify.error(result.error || 'Error al rechazar')
     }
 
     setLoading(null)
@@ -74,11 +75,11 @@ export function ComercialesTable({ comerciales }: Props) {
       <table className="w-full">
         <thead>
           <tr className="border-b border-gray-200">
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Usuario</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Empresa</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
-            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Registro</th>
-            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Acciones</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Usuario</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Empresa</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
+            <th scope="col" className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Registro</th>
+            <th scope="col" className="px-4 py-3 text-right text-sm font-semibold text-gray-700">Acciones</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">

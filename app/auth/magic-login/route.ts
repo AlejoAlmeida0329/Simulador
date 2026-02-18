@@ -70,11 +70,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=Usuario no encontrado', request.url))
     }
 
-    // 6. Obtener el auth user ID
-    const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers()
-    const authUser = authUsers.users.find(u => u.email === tokenData.email)
+    // 6. Obtener el auth user por ID (userData.id matches auth user ID)
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(userData.id)
 
-    if (!authUser) {
+    if (authError || !authUser.user) {
       return NextResponse.redirect(new URL('/login?error=Usuario no encontrado en Auth', request.url))
     }
 
@@ -86,7 +85,6 @@ export async function GET(request: NextRequest) {
     })
 
     if (linkError || !linkData) {
-      console.error('Error generating recovery link:', linkError)
       return NextResponse.redirect(new URL('/login?error=Error al generar sesión', request.url))
     }
 
@@ -94,7 +92,6 @@ export async function GET(request: NextRequest) {
     const hashedToken = linkData.properties?.hashed_token
 
     if (!hashedToken) {
-      console.error('No hashed token in response')
       return NextResponse.redirect(new URL('/login?error=Error al obtener token de sesión', request.url))
     }
 
@@ -105,7 +102,6 @@ export async function GET(request: NextRequest) {
     })
 
     if (sessionError || !sessionData.session) {
-      console.error('Error verifying OTP:', sessionError)
       return NextResponse.redirect(new URL('/login?error=Error al crear sesión', request.url))
     }
 

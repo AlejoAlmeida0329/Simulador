@@ -4,26 +4,18 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-export async function GET() {
-  const supabase = await createClient()
-
-  // Cerrar sesión en el servidor
-  await supabase.auth.signOut()
-
-  // Redirigir a login con headers que limpian cookies
-  const response = NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'))
-
-  // Limpiar todas las cookies de Supabase
+function clearSessionCookies(response: NextResponse) {
   response.cookies.delete('sb-access-token')
   response.cookies.delete('sb-refresh-token')
 
-  // Limpiar cookies con todos los posibles nombres
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const projectId = supabaseUrl.match(/https:\/\/([^.]+)/)?.[1] || ''
   const cookieNames = [
-    'sb-zcwcotimczwdiawyhszb-auth-token',
-    'sb-zcwcotimczwdiawyhszb-auth-token.0',
-    'sb-zcwcotimczwdiawyhszb-auth-token.1'
+    `sb-${projectId}-auth-token`,
+    `sb-${projectId}-auth-token.0`,
+    `sb-${projectId}-auth-token.1`,
   ]
 
   cookieNames.forEach(name => {
@@ -32,6 +24,22 @@ export async function GET() {
       path: '/',
     })
   })
+}
 
+export async function POST() {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+
+  const response = NextResponse.json({ success: true })
+  clearSessionCookies(response)
+  return response
+}
+
+export async function GET(request: NextRequest) {
+  const supabase = await createClient()
+  await supabase.auth.signOut()
+
+  const response = NextResponse.redirect(new URL('/login', request.url))
+  clearSessionCookies(response)
   return response
 }

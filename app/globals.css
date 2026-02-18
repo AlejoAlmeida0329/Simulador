@@ -1,3 +1,38 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 248 249 250;
+    --foreground: 10 10 10;
+    --primary: 220 38 38;
+    --primary-foreground: 255 255 255;
+    --muted: 241 243 245;
+    --muted-foreground: 107 114 128;
+    --border: 229 231 235;
+    --ring: 220 38 38;
+    --radius: 0.75rem;
+  }
+
+  * {
+    border-color: rgb(var(--border));
+  }
+}
+
+@layer utilities {
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tikin-red-600 focus-visible:ring-offset-2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

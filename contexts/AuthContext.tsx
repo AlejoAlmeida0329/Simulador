@@ -29,9 +29,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    // Get initial user (validated against Supabase auth server)
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user ?? null)
       setLoading(false)
     })
 
@@ -47,6 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase.auth])
 
   const signOut = async () => {
+    // Limpiar datos de cotizador persistidos en localStorage
+    localStorage.removeItem('bonos-storage')
+
     await supabase.auth.signOut()
     setUser(null)
   }

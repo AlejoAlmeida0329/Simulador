@@ -5,6 +5,10 @@
 'use server'
 
 import { createClient as createServerClient } from '@supabase/supabase-js'
+import { z } from 'zod'
+
+const invitationIdSchema = z.string().uuid('ID de invitación inválido')
+const emailSchema = z.string().email('Email inválido')
 
 /**
  * Procesar aceptación de invitación
@@ -15,6 +19,12 @@ export async function acceptInvitation(invitationId: string): Promise<{
   error?: string
 }> {
   try {
+    // Validate input
+    const parsed = invitationIdSchema.safeParse(invitationId)
+    if (!parsed.success) {
+      return { success: false, error: 'ID de invitación inválido' }
+    }
+
     // Usar service role para crear usuario
     const supabaseAdmin = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,48 +54,47 @@ export async function acceptInvitation(invitationId: string): Promise<{
       return { success: false, error: 'Esta invitación ha expirado' }
     }
 
-    // 3. Verificar si existe usuario en Auth
-    const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers()
-    const existingAuthUser = authUsers.users.find(u => u.email === invitation.email)
+    // 3. Try creating user in Auth (avoids loading all users with listUsers)
+    const { data: newAuthUser, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
+      email: invitation.email,
+      email_confirm: true,
+      user_metadata: {
+        full_name: invitation.full_name,
+        company_name: invitation.company_name,
+      },
+    })
 
     let userId: string
 
-    // 4. Si existe en Auth, verificar si también tiene perfil
-    if (existingAuthUser) {
-      const { data: profileCheck } = await supabaseAdmin
+    if (!createAuthError && newAuthUser.user) {
+      // New user created successfully
+      userId = newAuthUser.user.id
+    } else {
+      // User might already exist in Auth - check if they also have a profile
+      const { data: existingProfile } = await supabaseAdmin
         .from('user_profiles')
         .select('id')
-        .eq('id', existingAuthUser.id)
+        .eq('email', invitation.email)
         .single()
 
-      if (profileCheck) {
-        // Usuario completo ya existe
+      if (existingProfile) {
         return { success: false, error: 'Ya existe un usuario con este email' }
       }
 
-      // Usuario huérfano - tiene Auth pero no perfil
-      console.log('⚠️ Usuario huérfano detectado:', existingAuthUser.id)
-      userId = existingAuthUser.id
-    } else {
-      // 5. No existe en Auth - crear usuario completo
-      const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      // Orphan user (exists in Auth but no profile) - get their ID via generateLink
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
         email: invitation.email,
-        email_confirm: true,
-        user_metadata: {
-          full_name: invitation.full_name,
-          company_name: invitation.company_name,
-        },
       })
 
-      if (authError || !authUser.user) {
-        console.error('Error creating auth user:', authError)
+      if (linkError || !linkData.user) {
         return { success: false, error: 'Error al crear el usuario' }
       }
 
-      userId = authUser.user.id
+      userId = linkData.user.id
     }
 
-    // 6. Crear perfil en user_profiles (usar upsert para evitar duplicados)
+    // 4. Crear perfil en user_profiles (usar upsert para evitar duplicados)
     const { error: profileError } = await supabaseAdmin.from('user_profiles').upsert({
       id: userId,
       email: invitation.email,
@@ -100,27 +109,18 @@ export async function acceptInvitation(invitationId: string): Promise<{
     })
 
     if (profileError) {
-      console.error('❌ Error creating user profile:', profileError)
-      console.error('❌ Error details:', JSON.stringify(profileError, null, 2))
-      console.error('❌ User ID:', userId)
-      console.error('❌ Email:', invitation.email)
       return {
         success: false,
         error: `Error al crear el perfil de usuario: ${profileError.message || profileError.code || 'desconocido'}`
       }
     }
 
-    // 7. Marcar invitación como aceptada
+    // 5. Marcar invitación como aceptada
     const { error: updateError } = await supabaseAdmin
       .from('comercial_invitations')
       .update({ status: 'accepted' })
       .eq('id', invitationId)
 
-    if (updateError) {
-      console.error('Error updating invitation:', updateError)
-    }
-
-    console.log('✅ Usuario creado/completado exitosamente:', invitation.email)
     return { success: true }
   } catch (error: any) {
     console.error('❌ Error in acceptInvitation:', error)
@@ -136,6 +136,13 @@ export async function sendLoginLink(email: string, fullName: string): Promise<{
   error?: string
 }> {
   try {
+    // Validate input
+    const parsed = emailSchema.safeParse(email)
+    if (!parsed.success) {
+      return { success: false, error: 'Email inválido' }
+    }
+    const validEmail = parsed.data
+
     // Usar service role para crear el token
     const supabaseAdmin = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -154,27 +161,25 @@ export async function sendLoginLink(email: string, fullName: string): Promise<{
     const { data: tokenData, error: tokenError } = await supabaseAdmin
       .from('login_tokens')
       .insert({
-        email,
+        email: validEmail,
         expires_at: expiresAt.toISOString(),
       })
       .select('token')
       .single()
 
     if (tokenError || !tokenData) {
-      console.error('Error creating login token:', tokenError)
       return { success: false, error: 'Error al generar el token de acceso' }
     }
 
     // Enviar email con Gmail
     const { sendMagicLinkEmail } = await import('@/lib/email/gmail')
     const emailResult = await sendMagicLinkEmail({
-      to: email,
+      to: validEmail,
       full_name: fullName,
       loginToken: tokenData.token,
     })
 
     if (!emailResult.success) {
-      console.error('Error sending magic link email:', emailResult.error)
       return { success: false, error: 'Error al enviar el email' }
     }
 

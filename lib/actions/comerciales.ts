@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/auth/server'
 import { revalidatePath } from 'next/cache'
 import { sendComercialInvitation } from '@/lib/email/gmail'
+import { z } from 'zod'
 import type {
   ComercialInvitation,
   ComercialInvitationWithAdmin,
@@ -15,6 +16,8 @@ import type {
   CreateInvitationResult,
 } from '@/types/invitations'
 import type { UserProfile } from '@/types/auth'
+
+const uuidSchema = z.string().uuid('ID inválido')
 
 /**
  * Obtener todos los comerciales
@@ -30,7 +33,6 @@ export async function getAllComerciales(): Promise<UserProfile[]> {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching comerciales:', error)
     return []
   }
 
@@ -53,7 +55,6 @@ export async function getPendingInvitations(): Promise<ComercialInvitationWithAd
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching invitations:', error)
     return []
   }
 
@@ -138,7 +139,6 @@ export async function createInvitation(
       .single()
 
     if (error) {
-      console.error('Error creating invitation:', error)
       return { success: false, error: 'Error al crear la invitación' }
     }
 
@@ -150,10 +150,9 @@ export async function createInvitation(
     })
 
     if (!emailResult.success && !emailResult.warning) {
-      console.error('Error sending invitation email:', emailResult.error)
-      console.warn('⚠️ Invitación creada pero email no enviado')
+      // Email failed but invitation was created
     } else if (emailResult.warning) {
-      console.warn('⚠️', emailResult.warning)
+      // Email not configured
     }
 
     revalidatePath('/admin/comerciales')
@@ -170,6 +169,9 @@ export async function createInvitation(
  */
 export async function cancelInvitation(invitationId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const parsed = uuidSchema.safeParse(invitationId)
+    if (!parsed.success) return { success: false, error: 'ID de invitación inválido' }
+
     await requireAdmin()
 
     // Usar service role para bypassear RLS en eliminaciones
@@ -193,11 +195,8 @@ export async function cancelInvitation(invitationId: string): Promise<{ success:
       .single()
 
     if (checkError || !existingInv) {
-      console.error('❌ Invitación no encontrada:', invitationId)
       return { success: false, error: 'Invitación no encontrada' }
     }
-
-    console.log('📋 Invitación encontrada:', existingInv)
 
     // Eliminar sin filtro de status (permitir eliminar cualquier invitación)
     const { error } = await supabaseAdmin
@@ -206,12 +205,9 @@ export async function cancelInvitation(invitationId: string): Promise<{ success:
       .eq('id', invitationId)
 
     if (error) {
-      console.error('❌ Error deleting invitation:', error)
-      console.error('❌ Error details:', JSON.stringify(error, null, 2))
       return { success: false, error: 'Error al eliminar la invitación' }
     }
 
-    console.log('✅ Invitación eliminada exitosamente:', invitationId)
     revalidatePath('/admin/comerciales')
     return { success: true }
   } catch (error: any) {
@@ -225,13 +221,16 @@ export async function cancelInvitation(invitationId: string): Promise<{ success:
  */
 export async function resendInvitation(invitationId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const parsed = uuidSchema.safeParse(invitationId)
+    if (!parsed.success) return { success: false, error: 'ID de invitación inválido' }
+
     await requireAdmin()
     const supabase = await createClient()
 
     // Obtener la invitación
     const { data: invitation, error: fetchError } = await supabase
       .from('comercial_invitations')
-      .select('*')
+      .select('id, email, full_name')
       .eq('id', invitationId)
       .eq('status', 'pending')
       .single()
@@ -249,7 +248,6 @@ export async function resendInvitation(invitationId: string): Promise<{ success:
       .eq('id', invitationId)
 
     if (updateError) {
-      console.error('Error updating invitation:', updateError)
       return { success: false, error: 'Error al actualizar la invitación' }
     }
 
@@ -261,7 +259,6 @@ export async function resendInvitation(invitationId: string): Promise<{ success:
     })
 
     if (!emailResult.success) {
-      console.error('Error resending invitation email:', emailResult.error)
       return { success: false, error: 'Error al reenviar el email' }
     }
 
@@ -282,6 +279,9 @@ export async function updateComercialApproval(
   approved: boolean
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const parsed = uuidSchema.safeParse(userId)
+    if (!parsed.success) return { success: false, error: 'ID de usuario inválido' }
+
     await requireAdmin()
     const supabase = await createClient()
 
@@ -296,7 +296,6 @@ export async function updateComercialApproval(
       .eq('role', 'comercial')
 
     if (error) {
-      console.error('Error updating comercial approval:', error)
       return { success: false, error: 'Error al actualizar el estado' }
     }
 
@@ -314,6 +313,9 @@ export async function updateComercialApproval(
  */
 export async function deleteComercial(userId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    const parsed = uuidSchema.safeParse(userId)
+    if (!parsed.success) return { success: false, error: 'ID de usuario inválido' }
+
     await requireAdmin()
 
     // Usar service role para bypassear RLS en eliminaciones
@@ -338,11 +340,8 @@ export async function deleteComercial(userId: string): Promise<{ success: boolea
       .single()
 
     if (fetchError || !userProfile) {
-      console.error('❌ Comercial no encontrado:', userId)
       return { success: false, error: 'Comercial no encontrado' }
     }
-
-    console.log('📧 Email del comercial:', userProfile.email)
 
     // 2. Eliminar el usuario de user_profiles
     const { error: deleteUserError } = await supabaseAdmin
@@ -352,11 +351,8 @@ export async function deleteComercial(userId: string): Promise<{ success: boolea
       .eq('role', 'comercial')
 
     if (deleteUserError) {
-      console.error('❌ Error deleting comercial from user_profiles:', deleteUserError)
       return { success: false, error: 'Error al eliminar el comercial' }
     }
-
-    console.log('✅ Comercial eliminado de user_profiles')
 
     // 3. Eliminar la invitación asociada de comercial_invitations
     const { error: deleteInvError } = await supabaseAdmin
@@ -365,10 +361,7 @@ export async function deleteComercial(userId: string): Promise<{ success: boolea
       .eq('email', userProfile.email)
 
     if (deleteInvError) {
-      console.error('⚠️ Error deleting invitation (non-critical):', deleteInvError)
-      // No retornar error porque el usuario ya fue eliminado
-    } else {
-      console.log('✅ Invitación asociada eliminada de comercial_invitations')
+      // Non-critical: user already deleted from user_profiles
     }
 
     revalidatePath('/admin/comerciales')
@@ -392,40 +385,29 @@ export async function getComercialesStats(): Promise<{
   await requireAdmin()
   const supabase = await createClient()
 
-  // Contar comerciales por estado
-  const { count: total } = await supabase
-    .from('user_profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'comercial')
+  // Fetch all comerciales approval_status + pending invitations count in parallel
+  const [comercialesResult, invitationsResult] = await Promise.all([
+    supabase
+      .from('user_profiles')
+      .select('approval_status')
+      .eq('role', 'comercial'),
+    supabase
+      .from('comercial_invitations')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending'),
+  ])
 
-  const { count: active } = await supabase
-    .from('user_profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'comercial')
-    .eq('approval_status', 'approved')
-
-  const { count: pending } = await supabase
-    .from('user_profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'comercial')
-    .eq('approval_status', 'pending')
-
-  const { count: rejected } = await supabase
-    .from('user_profiles')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'comercial')
-    .eq('approval_status', 'rejected')
-
-  const { count: pendingInvitations } = await supabase
-    .from('comercial_invitations')
-    .select('*', { count: 'exact', head: true })
-    .eq('status', 'pending')
+  const comerciales = comercialesResult.data || []
+  const total = comerciales.length
+  const active = comerciales.filter(c => c.approval_status === 'approved').length
+  const pending = comerciales.filter(c => c.approval_status === 'pending').length
+  const rejected = comerciales.filter(c => c.approval_status === 'rejected').length
 
   return {
-    total: total || 0,
-    active: active || 0,
-    pending: pending || 0,
-    rejected: rejected || 0,
-    pendingInvitations: pendingInvitations || 0,
+    total,
+    active,
+    pending,
+    rejected,
+    pendingInvitations: invitationsResult.count || 0,
   }
 }

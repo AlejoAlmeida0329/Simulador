@@ -1,13 +1,14 @@
 'use client'
 
 /**
- * PÁGINA DE APROBACIÓN PENDIENTE
+ * PAGINA DE APROBACION PENDIENTE
  *
- * Mostrada cuando un usuario se registra pero aún no ha sido aprobado por un admin
+ * Mostrada cuando un usuario se registra pero aun no ha sido aprobado por un admin
  */
 
 import { signOut } from '@/lib/auth/client'
 import { useEffect, useState } from 'react'
+import { Clock, Info } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function PendingApprovalPage() {
@@ -27,77 +28,53 @@ export default function PendingApprovalPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-tikin-dark-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 border-2 border-yellow-200">
+        <div className="bg-white rounded-lg shadow-soft p-8 border border-tikin-dark-200">
           {/* Icono de espera */}
           <div className="text-center mb-6">
-            <div className="inline-block p-4 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-2xl shadow-lg mb-4">
-              <svg
-                className="w-12 h-12 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+            <div className="inline-block p-4 bg-yellow-50 border border-yellow-200 rounded-lg mb-4">
+              <Clock className="w-12 h-12 text-yellow-600" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">
-              Aprobación Pendiente
+            <h1 className="text-2xl font-bold text-tikin-dark-950 mb-2">
+              Aprobacion Pendiente
             </h1>
-            <p className="text-sm text-gray-600">
-              Tu cuenta está siendo revisada
+            <p className="text-sm text-tikin-dark-600">
+              Tu cuenta esta siendo revisada
             </p>
           </div>
 
-          {/* Información */}
-          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4 mb-6">
+          {/* Informacion */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
             <div className="flex items-start gap-3">
-              <svg
-                className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
+              <Info className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-yellow-900 text-sm mb-2">
-                  ¿Qué significa esto?
+                  Que significa esto?
                 </p>
                 <ul className="space-y-1.5 text-xs text-yellow-800">
                   <li className="flex items-start gap-2">
-                    <span>•</span>
+                    <span>&#8226;</span>
                     <span>
                       Tu cuenta ha sido creada exitosamente con el email:{' '}
                       <strong>{email}</strong>
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>•</span>
+                    <span>&#8226;</span>
                     <span>
                       Un administrador debe aprobar tu acceso antes de que puedas
                       usar la plataforma
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>•</span>
+                    <span>&#8226;</span>
                     <span>
-                      Recibirás un email cuando tu cuenta sea aprobada
+                      Recibiras un email cuando tu cuenta sea aprobada
                     </span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span>•</span>
+                    <span>&#8226;</span>
                     <span>
                       Este proceso normalmente toma menos de 24 horas
                     </span>
@@ -108,7 +85,7 @@ export default function PendingApprovalPage() {
           </div>
 
           {/* Contacto */}
-          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <p className="text-xs text-blue-900 text-center">
               Si tienes alguna pregunta o necesitas acceso urgente, contacta a:{' '}
               <a
@@ -120,12 +97,12 @@ export default function PendingApprovalPage() {
             </p>
           </div>
 
-          {/* Botón de cerrar sesión */}
+          {/* Boton de cerrar sesion */}
           <button
             onClick={signOut}
-            className="w-full px-6 py-3 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-300 font-semibold"
+            className="w-full px-6 py-3 bg-tikin-dark-100 text-tikin-dark-700 rounded-lg hover:bg-tikin-dark-200 transition-colors font-semibold"
           >
-            Cerrar Sesión
+            Cerrar Sesion
           </button>
         </div>
       </div>

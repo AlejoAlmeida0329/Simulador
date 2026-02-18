@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId)
 
     if (deleteError) {
-      console.error('Error deleting user:', deleteError)
       return NextResponse.json(
         { error: deleteError.message },
         { status: 500 }

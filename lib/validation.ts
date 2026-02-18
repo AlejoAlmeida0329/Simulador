@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-// Colombian minimum wage 2024
-export const MINIMUM_WAGE_COP = 1_300_000
+// Colombian minimum wage 2026 (Decretos 1469/1470 del 29-dic-2025)
+export const MINIMUM_WAGE_COP = 1_750_905
 
 export const employeeSchema = z.object({
   salary: z

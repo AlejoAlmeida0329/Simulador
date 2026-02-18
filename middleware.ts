@@ -50,12 +50,12 @@ export async function middleware(request: NextRequest) {
   // ==========================================
   // RUTAS PÚBLICAS (sin autenticación)
   // ==========================================
-  const publicPaths = ['/login', '/auth/callback', '/auth/callback-hash', '/auth/accept-invitation', '/logout', '/dev-login']
+  const publicPaths = ['/login', '/auth/callback', '/auth/callback-hash', '/auth/accept-invitation', '/logout', '/bonos']
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
 
   // Si está en ruta pública y autenticado, redirigir según rol
   // EXCEPTO: logout y callback-hash (necesitan completar su proceso)
-  if (isPublicPath && user && pathname !== '/logout' && !pathname.startsWith('/auth/callback')) {
+  if (isPublicPath && user && pathname !== '/logout' && !pathname.startsWith('/auth/callback') && !pathname.startsWith('/bonos')) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role, approved, approval_status')
@@ -98,11 +98,10 @@ export async function middleware(request: NextRequest) {
   // ==========================================
   const isAdminPath = pathname.startsWith('/admin')
   const isComercialPath = pathname.startsWith('/comercial')
-  const isBonosPath = pathname.startsWith('/bonos')
-  const isProtectedPath = isAdminPath || isComercialPath || isBonosPath
+  const isProtectedPath = isAdminPath || isComercialPath
 
-  // Redirigir a login si no está autenticado
-  if (isProtectedPath && !user) {
+  // Redirigir a login si no está autenticado (excepto rutas públicas)
+  if (isProtectedPath && !isPublicPath && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirectTo', pathname)
@@ -117,10 +116,10 @@ export async function middleware(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    // Si no existe el perfil, cerrar sesión
+    // Si no existe el perfil, redirigir a login
     if (!profile) {
       const url = request.nextUrl.clone()
-      url.pathname = '/logout'
+      url.pathname = '/login'
       return NextResponse.redirect(url)
     }
 
@@ -148,8 +147,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // /bonos es accesible para ambos roles (admin y comercial)
-    // No se requiere verificación adicional
   }
 
   return supabaseResponse

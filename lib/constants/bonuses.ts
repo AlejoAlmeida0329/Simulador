@@ -25,12 +25,14 @@ export const SALARY_PERCENTAGE_DEFAULT = 70
 
 /**
  * Límite legal para bonos de alimentación exentos de parafiscales
- * Valor actualizado 2025 según normativa colombiana
+ * 41 UVT × $52.374 = $2.147.334 (Art. 387-1 E.T.)
+ * Valor actualizado 2026 — Resolución 000238 DIAN
  */
-export const FOOD_BONUS_LEGAL_LIMIT = 2099200
+export const FOOD_BONUS_LEGAL_LIMIT = 2_147_334
 
 /**
- * Salario mínimo legal mensual vigente (2025)
- * Utilizado para validaciones de nómina
+ * Salario mínimo para validaciones de nómina en cotizador
+ * Corresponde a SMMLV + Auxilio de Transporte 2026
+ * Decretos 1469/1470 del 29-dic-2025
  */
-export const MIN_SALARY = 2450000
+export const MIN_SALARY = 2_000_000

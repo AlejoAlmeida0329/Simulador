@@ -24,7 +24,6 @@ export async function GET(request: Request) {
   }
 
   if (!code) {
-    console.error('❌ No se recibió código de autenticación')
     return NextResponse.redirect(`${origin}/login?error=no_code`)
   }
 
@@ -57,12 +56,10 @@ export async function GET(request: Request) {
   const { data: sessionData, error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
 
   if (sessionError) {
-    console.error('❌ Error en exchangeCodeForSession:', sessionError)
     return NextResponse.redirect(`${origin}/login?error=session_failed`)
   }
 
   if (!sessionData.session) {
-    console.error('❌ No se obtuvo sesión después de exchangeCodeForSession')
     return NextResponse.redirect(`${origin}/login?error=no_session`)
   }
 
@@ -79,7 +76,7 @@ export async function GET(request: Request) {
       .single()
 
     if (profileError) {
-      console.error('❌ Error obteniendo perfil:', profileError)
+      // Profile fetch error - will use default redirect
     }
 
     if (profile) {
@@ -91,19 +88,21 @@ export async function GET(request: Request) {
       } else {
         // Redirigir según rol
         redirectPath = profile.role === 'admin' ? '/admin/dashboard' : '/comercial/dashboard'
-        console.log(`✅ Usuario autenticado: ${user.email} | Rol: ${profile.role} | Redirect: ${redirectPath}`)
       }
     }
   }
 
   // Crear redirect response con las cookies establecidas
+  // Validate x-forwarded-host against allowed origin to prevent open redirect
   const forwardedHost = request.headers.get('x-forwarded-host')
   const isLocalEnv = process.env.NODE_ENV === 'development'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  const allowedHost = appUrl ? new URL(appUrl).host : null
 
   let redirectUrl: string
   if (isLocalEnv) {
     redirectUrl = `${origin}${redirectPath}`
-  } else if (forwardedHost) {
+  } else if (forwardedHost && allowedHost && forwardedHost === allowedHost) {
     redirectUrl = `https://${forwardedHost}${redirectPath}`
   } else {
     redirectUrl = `${origin}${redirectPath}`

@@ -10,13 +10,15 @@ import { cache } from 'react'
 
 /**
  * Obtiene la sesión actual del usuario autenticado (con cache)
+ * Usa getUser() internamente para validar el JWT contra el servidor de Supabase
  */
 export const getSession = cache(async () => {
   const supabase = await createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  return session
+    data: { user },
+  } = await supabase.auth.getUser()
+  // Return a session-like object for backwards compatibility
+  return user ? { user } : null
 })
 
 /**

@@ -11,6 +11,13 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
+    // Validate Origin header against allowed app URL
+    const requestOrigin = request.headers.get('origin')
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL
+    if (appUrl && requestOrigin && requestOrigin !== appUrl) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const { access_token, refresh_token } = await request.json()
 
     if (!access_token) {
@@ -47,9 +54,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      console.error('❌ Error estableciendo sesión:', error)
       return NextResponse.json(
-        { error: error.message },
+        { error: 'Error al establecer la sesión' },
         { status: 500 }
       )
     }
@@ -60,8 +66,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-
-    console.log('✅ Sesión establecida server-side para:', data.session.user.email)
 
     // Obtener perfil y rol
     const { data: profile } = await supabase
@@ -93,7 +97,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('❌ Error en set-session:', error)
     return NextResponse.json(
-      { error: error.message || 'Error interno' },
+      { error: 'Error interno del servidor' },
       { status: 500 }
     )
   }

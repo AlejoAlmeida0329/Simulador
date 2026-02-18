@@ -9,6 +9,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { deleteComercial } from '@/lib/actions/comerciales'
 import type { UserProfile } from '@/types/auth'
+import { notify } from '@/lib/utils/notifications'
 
 interface Props {
   comerciales: UserProfile[]
@@ -23,27 +24,21 @@ export function SimpleComercialesTable({ comerciales }: Props) {
     if (deleting) return // Prevenir doble click
 
     setDeleting(userId)
-    console.log('🔴 Frontend: Iniciando eliminación de comercial:', userId)
 
     try {
-      console.log('🔴 Frontend: Llamando deleteComercial...')
       const result = await deleteComercial(userId)
-      console.log('🔴 Frontend: Resultado recibido:', result)
 
       if (result.success) {
-        console.log('✅ Frontend: Éxito confirmado, recargando página...')
         // Resetear estado ANTES del refresh
         setDeleting(null)
-        // Forzar refresh completo de la página
-        window.location.reload()
+        // Actualizar datos del servidor
+        router.refresh()
       } else {
-        console.log('❌ Frontend: Error en resultado:', result.error)
-        alert(`Error al eliminar: ${result.error}`)
+        notify.error(`Error al eliminar: ${result.error}`)
         setDeleting(null)
       }
     } catch (error: any) {
-      console.log('❌ Frontend: Exception capturada:', error)
-      alert(`Error: ${error.message}`)
+      notify.error(`Error: ${error.message}`)
       setDeleting(null)
     }
   }
@@ -61,16 +56,16 @@ export function SimpleComercialesTable({ comerciales }: Props) {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Nombre
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Email
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Fecha de Registro
             </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Acciones
             </th>
           </tr>

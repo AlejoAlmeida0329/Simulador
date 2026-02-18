@@ -6,7 +6,7 @@ import nodemailer from 'nodemailer'
 
 // Validar variables de entorno
 if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-  console.warn('⚠️ GMAIL_USER o GMAIL_APP_PASSWORD no configurado - emails no se enviarán')
+  // GMAIL credentials not configured - emails will not be sent
 }
 
 // Crear transportador de Nodemailer con Gmail
@@ -30,7 +30,6 @@ export async function sendComercialInvitation(params: {
 
   // Si no hay credenciales, no enviar pero no fallar
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.warn('⚠️ Email no enviado - GMAIL_USER o GMAIL_APP_PASSWORD no configurado')
     return { success: true, warning: 'Email no configurado' }
   }
 
@@ -95,7 +94,6 @@ export async function sendComercialInvitation(params: {
       `,
     })
 
-    console.log('✅ Invitation email sent:', info.messageId)
     return { success: true, messageId: info.messageId }
   } catch (error: any) {
     console.error('❌ Error sending invitation email:', error)
@@ -114,7 +112,6 @@ export async function sendMagicLinkEmail(params: {
   const { to, full_name, loginToken } = params
 
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.warn('⚠️ Email no enviado - GMAIL_USER o GMAIL_APP_PASSWORD no configurado')
     return { success: true, warning: 'Email no configurado' }
   }
 
@@ -172,7 +169,6 @@ export async function sendMagicLinkEmail(params: {
       `,
     })
 
-    console.log('✅ Magic link email sent:', info.messageId)
     return { success: true, messageId: info.messageId }
   } catch (error: any) {
     console.error('❌ Error sending magic link email:', error)

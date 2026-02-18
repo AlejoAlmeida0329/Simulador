@@ -9,6 +9,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { cancelInvitation, resendInvitation } from '@/lib/actions/comerciales'
 import type { ComercialInvitation } from '@/types/invitations'
+import { notify } from '@/lib/utils/notifications'
 
 interface Props {
   invitations: ComercialInvitation[]
@@ -24,27 +25,21 @@ export function SimpleInvitationsTable({ invitations }: Props) {
     if (deleting) return // Prevenir doble click
 
     setDeleting(invitationId)
-    console.log('🔴 Frontend: Iniciando eliminación de invitación:', invitationId)
 
     try {
-      console.log('🔴 Frontend: Llamando cancelInvitation...')
       const result = await cancelInvitation(invitationId)
-      console.log('🔴 Frontend: Resultado recibido:', result)
 
       if (result.success) {
-        console.log('✅ Frontend: Éxito confirmado, recargando página...')
         // Resetear estado ANTES del refresh
         setDeleting(null)
-        // Forzar refresh completo de la página
-        window.location.reload()
+        // Actualizar datos del servidor
+        router.refresh()
       } else {
-        console.log('❌ Frontend: Error en resultado:', result.error)
-        alert(`Error al eliminar: ${result.error}`)
+        notify.error(`Error al eliminar: ${result.error}`)
         setDeleting(null)
       }
     } catch (error: any) {
-      console.log('❌ Frontend: Exception capturada:', error)
-      alert(`Error: ${error.message}`)
+      notify.error(`Error: ${error.message}`)
       setDeleting(null)
     }
   }
@@ -58,14 +53,14 @@ export function SimpleInvitationsTable({ invitations }: Props) {
       const result = await resendInvitation(invitationId)
 
       if (result.success) {
-        alert('Invitación reenviada correctamente')
+        notify.success('Invitación reenviada correctamente')
         setResending(null)
       } else {
-        alert(`Error al reenviar: ${result.error}`)
+        notify.error(`Error al reenviar: ${result.error}`)
         setResending(null)
       }
     } catch (error: any) {
-      alert(`Error: ${error.message}`)
+      notify.error(`Error: ${error.message}`)
       setResending(null)
     }
   }
@@ -83,16 +78,16 @@ export function SimpleInvitationsTable({ invitations }: Props) {
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Nombre
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Email
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Fecha
             </th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
               Acciones
             </th>
           </tr>

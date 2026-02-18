@@ -35,9 +35,17 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
  * Redirige al route handler /logout que maneja la limpieza server-side
  */
 export async function signOut(): Promise<void> {
-  // Redirigir al route handler que maneja logout server-side
+  // Limpiar datos de cotizador persistidos en localStorage
+  localStorage.removeItem('bonos-storage')
+
+  // Cerrar sesión client-side (limpia tokens en memoria del SDK)
+  const supabase = createClient()
+  await supabase.auth.signOut()
+
+  // POST al route handler que maneja logout server-side
   // Esto asegura limpieza completa de cookies y sesión
-  window.location.href = '/logout'
+  await fetch('/logout', { method: 'POST' })
+  window.location.href = '/login'
 }
 
 /**
