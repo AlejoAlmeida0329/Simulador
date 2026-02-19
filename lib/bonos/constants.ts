@@ -74,12 +74,6 @@ export const EMPLEADO_SALUD_RATE = 0.04
 export const EMPLEADO_PENSION_RATE = 0.04
 export const EMPLEADO_SS_RATE = EMPLEADO_SALUD_RATE + EMPLEADO_PENSION_RATE // 8%
 
-/**
- * Fee de Tikin para salario integral
- * Se cobra como porcentaje del ahorro generado
- */
-export const FEE_SALARIO_INTEGRAL = 0.20 // 20% del ahorro
-
 // ============================================
 // CONFIGURACIÓN DE SPLIT SALARIO/BONO
 // ============================================
@@ -103,6 +97,14 @@ export const MAX_SALARY_PERCENTAGE = 100
  */
 export const MIN_SALARY_BASE_SMMLV = 1
 
+/**
+ * Salario mínimo para participar en esquema de bonos.
+ * Regla de negocio: $2,500,000 COP.
+ * Referencia: Ley 1393/2010 Art. 30 — el 60% de base salarial
+ * no puede ser inferior a 1 SMMLV ($1,750,905).
+ */
+export const MIN_SALARIO_BONOS = 2_500_000
+
 // ============================================
 // TIPOS DE BONOS DISPONIBLES
 // ============================================
@@ -114,7 +116,8 @@ export enum BonusCategory {
   MERA_LIBERALIDAD = 'mera_liberalidad',
   ALIMENTACION = 'alimentacion',
   DOTACION = 'dotacion',
-  VIATICOS = 'viaticos'
+  VIATICOS = 'viaticos',
+  REPARTICION_UTILIDADES = 'reparticion_utilidades'
 }
 
 /**
@@ -136,7 +139,10 @@ export enum BonusTypeEnum {
   ALIMENTACION = 'alimentacion',
 
   // Dotación (obligatorio, solo <2 SMMLV)
-  DOTACION = 'dotacion'
+  DOTACION = 'dotacion',
+
+  // Repartición de Utilidades (no suma al 40%)
+  REPARTICION_UTILIDADES = 'reparticion_utilidades'
 }
 
 /**
@@ -245,6 +251,18 @@ export const BONUS_TYPES_METADATA: Record<BonusTypeEnum, BonusTypeMetadata> = {
     reglasEspeciales: [
       'Solo aplica a empleados con salario menor a 2 SMMLV',
       'Obligatoria por ley para trabajadores que califiquen'
+    ]
+  },
+  [BonusTypeEnum.REPARTICION_UTILIDADES]: {
+    id: BonusTypeEnum.REPARTICION_UTILIDADES,
+    nombre: 'Repartición de Utilidades',
+    descripcion: 'Bonificación por repartición de utilidades de la empresa',
+    categoria: BonusCategory.REPARTICION_UTILIDADES,
+    icono: '📊',
+    color: 'emerald',
+    reglasEspeciales: [
+      'No constituye salario (Art. 128 CST)',
+      'No suma al límite del 40% de compensación no salarial'
     ]
   }
 }

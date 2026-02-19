@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useBonosStore } from '@/store/bonosStore'
-import { FEE_SALARIO_INTEGRAL } from '@/lib/bonos/constants'
-import type { IntegralEmployeeResult } from '@/lib/bonos/types'
+import { BONUS_TYPES_METADATA, BonusTypeEnum, BonusCategory } from '@/lib/bonos/constants'
+import type { TikinCommission, BonusTotals } from '@/lib/bonos/types'
 
 const formatCOP = (value: number) =>
   new Intl.NumberFormat('es-CO', {
@@ -12,26 +12,23 @@ const formatCOP = (value: number) =>
     maximumFractionDigits: 0
   }).format(value)
 
-const formatPercent = (value: number) =>
-  `${value.toFixed(1)}%`
-
 const tick = () => new Promise(resolve => setTimeout(resolve, 50))
 
 /**
- * IntegralResultsStep — Paso 3 del flujo de Salario Integral
+ * IntegralResultsStep — Paso 4 del flujo de Salario Integral
  *
- * Rediseno con narrativa clara:
- * 1. Hero: "Asi queda" — estructura propuesta visual
- * 2. Ahorro total — el numero que importa
- * 3. De donde viene — 3 tarjetas simples
- * 4. Beneficio empleado — una fila compacta
- * 5. Comision Tikin — compacto
- * 6. Detalle por empleado — colapsado
- * 7. Disclaimer — compacto
+ * Rediseño alineado con ResultsStep UX:
+ * 1. Header centrado
+ * 2. Estructura de Compensación (SalaryStructureCard style)
+ * 3. Desglose de Bonos y Tarifas (BonusBreakdownCard)
+ * 4. Comparativo de Costos (accordion detallado)
+ * 5. Comisión & Beneficio Neto (CommissionSummary waterfall)
+ * 6. Actions + Disclaimer
  */
 export function IntegralResultsStep() {
   const {
     resumenIntegral,
+    comisionesTikin,
     calcularResumenIntegral,
     pasoAnterior,
     resetear,
@@ -39,13 +36,11 @@ export function IntegralResultsStep() {
 
   const [loading, setLoading] = useState(true)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
-  const [showDetail, setShowDetail] = useState(false)
-  const [expandedEmployee, setExpandedEmployee] = useState<string | null>(null)
 
   useEffect(() => {
     const run = async () => {
       setLoading(true)
-      calcularResumenIntegral()
+      await calcularResumenIntegral()
       await tick()
       setLoading(false)
     }
@@ -64,18 +59,26 @@ export function IntegralResultsStep() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16" role="status" aria-label="Calculando resultados">
-        <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
-        <p className="mt-4 text-gray-600 font-medium">Calculando resultados...</p>
+      <div className="max-w-6xl mx-auto space-y-8">
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
+            Resultados de Salario Integral
+          </h2>
+          <p className="text-gray-600">Calculando resultados...</p>
+        </div>
+        <div className="flex flex-col items-center justify-center py-20" role="status" aria-label="Calculando resultados">
+          <div className="w-12 h-12 border-4 border-gray-200 border-t-tikin-red rounded-full animate-spin mb-4" />
+          <p className="text-gray-500 text-sm">Procesando calculos financieros</p>
+        </div>
       </div>
     )
   }
 
   if (!resumenIntegral) {
     return (
-      <div className="text-center py-16">
+      <div className="max-w-6xl mx-auto text-center py-16">
         <p className="text-gray-500">No se pudieron calcular los resultados. Verifica los datos ingresados.</p>
-        <button onClick={pasoAnterior} className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+        <button onClick={pasoAnterior} className="mt-4 px-6 py-2 bg-tikin-red text-white rounded-lg hover:bg-red-700">
           Volver a Datos
         </button>
       </div>
@@ -85,76 +88,45 @@ export function IntegralResultsStep() {
   const r = resumenIntegral
   const firstEligible = r.resultadosPorEmpleado.find(e => e.elegibleParaIntegral)
 
-  // Aggregate employee impact for the summary line
+  // Total actual bonuses selected (from store calculation)
+  const totalBonosSeleccionados = r.totalBonos ?? 0
+  const totalBonosPorEmpleado = r.empleadosElegibles > 0
+    ? totalBonosSeleccionados / r.empleadosElegibles
+    : 0
+
+  // Percentages for stacked bar
+  const integralMinimo = firstEligible?.estructuraPropuesta.salarioIntegral ?? 0
+  const compensacionPorEmpleado = integralMinimo + totalBonosPorEmpleado
+  const pctIntegral = compensacionPorEmpleado > 0
+    ? (integralMinimo / compensacionPorEmpleado) * 100
+    : 0
+  const pctBonos = compensacionPorEmpleado > 0
+    ? (totalBonosPorEmpleado / compensacionPorEmpleado) * 100
+    : 0
+
+  // Aggregate employee impact
   const totalImpactoEmpleados = r.resultadosPorEmpleado
     .filter(e => e.elegibleParaIntegral)
     .reduce((sum, e) => sum + e.impactoEmpleado.ahorroSsEmpleado, 0)
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-8">
 
       {/* =========================================== */}
-      {/* SECTION 1: Hero — "Asi queda la estructura" */}
+      {/* Header                                      */}
       {/* =========================================== */}
-      {firstEligible && (
-        <div className="bg-white rounded-2xl shadow-soft border border-gray-100 p-6 sm:p-8">
-          <div className="text-center mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-              Asi queda la nueva estructura
-            </h2>
-            {r.empleadosElegibles > 1 && (
-              <p className="text-sm text-gray-500 mt-1">
-                Ejemplo con el primer empleado elegible ({firstEligible.empleadoNombre})
-              </p>
-            )}
-          </div>
-
-          {/* Before */}
-          <div className="text-center mb-4">
-            <p className="text-sm text-gray-500 mb-2">Hoy gana</p>
-            <div className="inline-block bg-gray-100 rounded-xl px-6 py-3">
-              <p className="text-2xl font-bold text-gray-800">{formatCOP(firstEligible.salarioActual)}</p>
-              <p className="text-xs text-gray-400">Salario ordinario</p>
-            </div>
-          </div>
-
-          {/* Arrow */}
-          <div className="flex justify-center my-3">
-            <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-          </div>
-
-          {/* After — the 3 boxes */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 justify-center">
-            <div className="bg-purple-50 border-2 border-purple-200 rounded-xl px-5 py-4 text-center min-w-[140px]">
-              <p className="text-xs font-semibold text-purple-500 uppercase tracking-wide">Integral</p>
-              <p className="text-xl font-bold text-purple-800 mt-1">{formatCOP(firstEligible.estructuraPropuesta.salarioIntegral)}</p>
-              <p className="text-xs text-purple-400 mt-0.5">Minimo legal</p>
-            </div>
-            <span className="text-2xl font-bold text-purple-300">+</span>
-            <div className="bg-orange-50 border-2 border-orange-200 rounded-xl px-5 py-4 text-center min-w-[140px]">
-              <p className="text-xs font-semibold text-orange-500 uppercase tracking-wide">Bonos</p>
-              <p className="text-xl font-bold text-orange-700 mt-1">{formatCOP(firstEligible.estructuraPropuesta.montoBonos)}</p>
-              <p className="text-xs text-orange-400 mt-0.5">La diferencia</p>
-            </div>
-            <span className="text-2xl font-bold text-gray-300">=</span>
-            <div className="bg-green-50 border-2 border-green-200 rounded-xl px-5 py-4 text-center min-w-[140px]">
-              <p className="text-xs font-semibold text-green-600 uppercase tracking-wide">Total</p>
-              <p className="text-xl font-bold text-green-700 mt-1">{formatCOP(firstEligible.estructuraPropuesta.compensacionTotal)}</p>
-              <p className="text-xs text-green-500 mt-0.5 font-medium">Recibe lo mismo</p>
-            </div>
-          </div>
-
-          <p className="text-center text-sm text-gray-500 mt-5">
-            El empleado recibe exactamente la misma compensacion total.
-          </p>
-        </div>
-      )}
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">
+          Resultados de Salario Integral
+        </h2>
+        <p className="text-gray-600">
+          Reestructuracion de salario integral: misma compensacion, menores aportes patronales
+        </p>
+      </div>
 
       {/* No eligible employees fallback */}
       {r.empleadosElegibles === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-8 text-center">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 text-center">
           <svg className="w-12 h-12 text-amber-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
@@ -162,112 +134,123 @@ export function IntegralResultsStep() {
           <p className="text-sm text-amber-600 mt-2">
             Todos los salarios ingresados son menores al minimo integral. Verifica los datos e intenta de nuevo.
           </p>
-          <button onClick={pasoAnterior} className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+          <button onClick={pasoAnterior} className="mt-4 px-6 py-2 bg-tikin-red text-white rounded-lg hover:bg-red-700">
             Volver a Datos
           </button>
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* SECTION 2: "Tu empresa ahorra" — big number */}
-      {/* ============================================ */}
-      {r.empleadosElegibles > 0 && (
-        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-6 sm:p-8 text-center">
-          <p className="text-sm font-semibold text-green-600 uppercase tracking-wide">Tu empresa ahorra</p>
-          <p className="text-4xl sm:text-5xl font-bold text-green-700 mt-2">
-            {formatCOP(r.ahorroTotalMensual)}
-            <span className="text-lg font-normal text-green-500">/mes</span>
-          </p>
-          <p className="text-lg font-semibold text-green-600 mt-1">
-            {formatCOP(r.ahorroTotalAnual)}<span className="text-sm font-normal">/ano</span>
-          </p>
-          <div className="mt-3 inline-flex items-center gap-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-            -{formatPercent(r.ahorroPorcentaje)} en costos laborales
-          </div>
-          {r.empleadosElegibles > 1 && (
-            <p className="text-xs text-green-500 mt-3">
-              Para {r.empleadosElegibles} empleados elegibles de {r.totalEmpleados} total
+      {/* =========================================== */}
+      {/* SECTION 1: Estructura de Compensación        */}
+      {/* =========================================== */}
+      {r.empleadosElegibles > 0 && firstEligible && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">Estructura de Compensacion Propuesta</h3>
+            <p className="text-sm text-gray-500 mt-1">
+              {r.empleadosElegibles === 1
+                ? `Como se distribuye la compensacion de ${firstEligible.empleadoNombre}`
+                : `Promedio por empleado elegible (${r.empleadosElegibles} de ${r.totalEmpleados})`
+              }
             </p>
-          )}
-        </div>
-      )}
+          </div>
 
-      {/* ============================================ */}
-      {/* SECTION 3: "De donde viene el ahorro?"      */}
-      {/* ============================================ */}
-      {r.empleadosElegibles > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">De donde viene el ahorro?</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* SS */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-soft">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </div>
-                <p className="font-semibold text-gray-900 text-sm">Seguridad Social</p>
-              </div>
-              <p className="text-xs text-gray-500 mb-3">
-                Antes: sobre el 100% del salario<br />
-                Ahora: sobre el 70% del integral<br />
-                <span className="text-gray-400">(Art. 18, Ley 100/1993 — IBC = factor salarial 70%)</span>
-              </p>
-              <p className="text-lg font-bold text-green-600">
-                {formatCOP(r.ahorroDetalle.seguridadSocial)}<span className="text-xs font-normal text-green-400">/mes</span>
-              </p>
+          <div className="p-6 space-y-6">
+            {/* Total compensation */}
+            <div className="text-center">
+              <p className="text-sm text-gray-500 mb-1">Compensacion Total Mensual {r.empleadosElegibles > 1 ? '(promedio)' : ''}</p>
+              <p className="text-3xl font-bold text-gray-900">{formatCOP(compensacionPorEmpleado)}</p>
+              <p className="text-xs text-gray-400 mt-1">El empleado recibe exactamente la misma compensacion total</p>
             </div>
 
-            {/* Parafiscales */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-soft">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <p className="font-semibold text-gray-900 text-sm">Parafiscales</p>
+            {/* Stacked bar */}
+            <div className="w-full h-8 rounded-full overflow-hidden flex bg-gray-100">
+              <div
+                className="h-full bg-indigo-500 transition-all duration-500 flex items-center justify-center"
+                style={{ width: `${pctIntegral}%` }}
+              >
+                {pctIntegral >= 15 && (
+                  <span className="text-xs font-semibold text-white">{pctIntegral.toFixed(0)}%</span>
+                )}
               </div>
-              <p className="text-xs text-gray-500 mb-3">
-                Antes: SENA + ICBF + Caja sobre 100%<br />
-                Ahora: sobre el 70% del integral<br />
-                <span className="text-gray-400">(Ley 789/2002 Art. 49)</span>
-              </p>
-              <p className="text-lg font-bold text-green-600">
-                {formatCOP(r.ahorroDetalle.parafiscales)}<span className="text-xs font-normal text-green-400">/mes</span>
-              </p>
+              <div
+                className="h-full bg-emerald-500 transition-all duration-500 flex items-center justify-center"
+                style={{ width: `${pctBonos}%` }}
+              >
+                {pctBonos >= 10 && (
+                  <span className="text-xs font-semibold text-white">{pctBonos.toFixed(0)}%</span>
+                )}
+              </div>
             </div>
 
-            {/* Prestaciones */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-soft">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+            {/* Two metric cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Salario Integral */}
+              <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                  <h4 className="text-sm font-semibold text-indigo-900">Salario Integral ({pctIntegral.toFixed(0)}%)</h4>
                 </div>
-                <p className="font-semibold text-gray-900 text-sm">Prestaciones</p>
+                <p className="text-2xl font-bold text-indigo-700 mb-2">{formatCOP(integralMinimo)}</p>
+                <p className="text-xs text-indigo-600/80 leading-relaxed">
+                  Minimo integral legal (13 SMMLV). IBC = 70% ({formatCOP(firstEligible.estructuraPropuesta.factorSalarial)}) + factor prestacional 30%
+                </p>
               </div>
-              <p className="text-xs text-gray-500 mb-3">
-                Antes: ~22% (prima, cesantias, etc.)<br />
-                Ahora: $0 — incluidas en el factor prestacional 30%<br />
-                <span className="text-gray-400">(Art. 132 CST — prestaciones incluidas en el integral)</span>
-              </p>
-              <p className="text-lg font-bold text-green-600">
-                {formatCOP(r.ahorroDetalle.prestaciones)}<span className="text-xs font-normal text-green-400">/mes</span>
-              </p>
+
+              {/* Bonos */}
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <h4 className="text-sm font-semibold text-emerald-900">Bonos Art. 128 ({pctBonos.toFixed(0)}%)</h4>
+                </div>
+                <p className="text-2xl font-bold text-emerald-700 mb-2">{formatCOP(totalBonosPorEmpleado)}</p>
+                <p className="text-xs text-emerald-600/80 leading-relaxed">
+                  No salarial &mdash; no genera aportes, parafiscales ni prestaciones adicionales
+                </p>
+              </div>
+            </div>
+
+            {/* Explanation */}
+            <div className="bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+              <div className="flex gap-2">
+                <svg className="w-5 h-5 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Antes:</span> salario integral de <span className="font-semibold text-gray-900">{formatCOP(firstEligible.salarioActual)}</span>, aportes sobre IBC de <span className="font-semibold text-gray-900">{formatCOP(Math.round(firstEligible.salarioActual * 0.7))}</span> (70%).
+                  </p>
+                  <p className="text-sm text-gray-700 mt-1">
+                    <span className="font-medium">Ahora:</span> integral minimo de <span className="font-semibold text-indigo-700">{formatCOP(integralMinimo)}</span>, aportes sobre IBC de <span className="font-semibold text-indigo-700">{formatCOP(firstEligible.estructuraPropuesta.factorSalarial)}</span> (70%). La diferencia de <span className="font-semibold text-emerald-600">{formatCOP(firstEligible.salarioActual - integralMinimo)}</span> va como bonos no salariales.
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2 italic">
+                    Art. 132 CST (salario integral), Art. 18 Ley 100/1993 (IBC = factor salarial 70%), Art. 128 CST (pagos no constitutivos de salario).
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ============================================ */}
+      {/* =========================================== */}
+      {/* SECTION 2: Desglose de Bonos y Tarifas      */}
+      {/* =========================================== */}
+      {r.empleadosElegibles > 0 && r.desglosePorTipo && r.desglosePorTipo.length > 0 && comisionesTikin && (
+        <IntegralBonusBreakdown desglose={r.desglosePorTipo} comisiones={comisionesTikin} />
+      )}
+
+
+      {/* =========================================== */}
+      {/* SECTION 3: Comparativo de Costos (accordion) */}
+      {/* =========================================== */}
+      {r.empleadosElegibles > 0 && (
+        <IntegralComparisonCards resumen={r} />
+      )}
+
+      {/* =========================================== */}
       {/* SECTION 4: Beneficio empleado (compact)      */}
-      {/* ============================================ */}
+      {/* =========================================== */}
       {r.empleadosElegibles > 0 && firstEligible && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
@@ -292,237 +275,654 @@ export function IntegralResultsStep() {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* SECTION 5: Comision Tikin + Beneficio neto   */}
-      {/* ============================================ */}
-      {r.empleadosElegibles > 0 && (
-        <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-5">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-gray-600">
-                <span className="font-medium">Comision Tikin:</span>{' '}
-                {(FEE_SALARIO_INTEGRAL * 100).toFixed(0)}% del ahorro ={' '}
-                <span className="font-semibold">{formatCOP(r.comisionTikin.feeMensual)}/mes</span>
-                {' '}+ IVA ={' '}
-                <span className="font-semibold">{formatCOP(r.comisionTikin.totalConIvaMensual)}/mes</span>
-              </p>
-            </div>
-            <div className="text-center sm:text-right">
-              <p className="text-xs text-gray-500">Tu beneficio neto real</p>
-              <p className="text-xl font-bold text-emerald-700">{formatCOP(r.beneficioNetoMensual)}<span className="text-sm font-normal text-emerald-500">/mes</span></p>
-              <p className="text-sm font-semibold text-emerald-600">{formatCOP(r.beneficioNetoAnual)}<span className="text-xs font-normal">/ano</span></p>
-            </div>
-          </div>
-        </div>
+      {/* =========================================== */}
+      {/* SECTION 5: Comisión & Beneficio Neto         */}
+      {/* =========================================== */}
+      {r.empleadosElegibles > 0 && comisionesTikin && (
+        <IntegralCommissionSummary
+          ahorroMensual={r.ahorroTotalMensual}
+          ahorroAnual={r.ahorroTotalAnual}
+          comisiones={comisionesTikin}
+          beneficioNetoMensual={r.beneficioNetoMensual}
+          beneficioNetoAnual={r.beneficioNetoAnual}
+        />
       )}
 
-      {/* ============================================ */}
-      {/* SECTION 6: Detalle por empleado (collapsed)  */}
-      {/* ============================================ */}
-      <div className="bg-white rounded-xl shadow-soft border border-gray-100">
-        <button
-          type="button"
-          onClick={() => setShowDetail(!showDetail)}
-          className="w-full flex items-center justify-between p-5 text-left"
-          aria-expanded={showDetail}
-        >
-          <div className="flex items-center gap-2">
-            <svg className={`w-5 h-5 text-gray-400 transition-transform ${showDetail ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-semibold text-gray-900">Detalle por empleado</span>
-            <span className="text-sm text-gray-400">({r.totalEmpleados} {r.totalEmpleados === 1 ? 'empleado' : 'empleados'})</span>
-          </div>
-          <span className="text-xs text-gray-400">{showDetail ? 'Ocultar' : 'Ver detalle'}</span>
-        </button>
 
-        {showDetail && (
-          <div className="px-5 pb-5 border-t border-gray-100">
-            <div className="overflow-x-auto mt-4">
-              <table className="w-full text-sm" role="table">
-                <thead>
-                  <tr className="text-left border-b border-gray-200">
-                    <th className="pb-2 pr-4 text-gray-500 font-medium">Empleado</th>
-                    <th className="pb-2 pr-4 text-gray-500 font-medium text-right">Salario</th>
-                    <th className="pb-2 pr-4 text-gray-500 font-medium text-right">Ahorro/mes</th>
-                    <th className="pb-2 text-gray-500 font-medium text-center">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {r.resultadosPorEmpleado.map((emp) => (
-                    <EmployeeRow
-                      key={emp.empleadoId}
-                      emp={emp}
-                      isExpanded={expandedEmployee === emp.empleadoId}
-                      onToggle={() => setExpandedEmployee(
-                        expandedEmployee === emp.empleadoId ? null : emp.empleadoId
-                      )}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ============================================ */}
-      {/* SECTION 7: Disclaimer legal (compact)        */}
-      {/* ============================================ */}
+      {/* =========================================== */}
+      {/* Disclaimer legal                             */}
+      {/* =========================================== */}
       <p className="text-xs text-gray-400 text-center leading-relaxed px-4">
-        Simulacion basada en valores legales 2025 (SMMLV: $1.423.500). Las prestaciones quedan incluidas en el factor prestacional del 30%. Consulte con un abogado laboralista antes de implementar.
+        Simulacion basada en valores legales 2026 (SMMLV: $1.750.905). Las prestaciones quedan incluidas en el factor prestacional del 30%. Consulte con un abogado laboralista antes de implementar.
       </p>
 
-      {/* ============================================ */}
+      {/* =========================================== */}
       {/* Navigation                                   */}
-      {/* ============================================ */}
+      {/* =========================================== */}
       <div className="flex gap-4">
         <button
           onClick={pasoAnterior}
-          className="flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50"
+          className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Volver a Datos
+          Volver
         </button>
         <button
           onClick={handleNuevaCotizacion}
           className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
             showResetConfirm
               ? 'bg-amber-500 text-white hover:bg-amber-600'
-              : 'bg-purple-600 text-white hover:bg-purple-700'
+              : 'bg-tikin-red text-white hover:bg-red-700'
           }`}
         >
-          {showResetConfirm ? 'Confirmar — Iniciar Nueva Cotizacion' : 'Nueva Cotizacion'}
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {showResetConfirm ? 'Confirmar Nueva Cotizacion' : 'Nueva Cotizacion'}
         </button>
+        <button
+          onClick={() => { resetear(); window.location.href = '/' }}
+          className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          Ir al Inicio
+        </button>
+      </div>
+
+      {showResetConfirm && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+          <p className="text-sm text-amber-800">
+            Se borraran todos los datos de la cotizacion actual. Esta accion no se puede deshacer.
+          </p>
+          <button
+            onClick={() => setShowResetConfirm(false)}
+            className="mt-2 text-sm text-amber-700 underline hover:text-amber-900"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
+// Comparison Cards — Accordion (3 categories)
+// ============================================
+
+function IntegralComparisonCards({
+  resumen
+}: {
+  resumen: NonNullable<ReturnType<typeof useBonosStore.getState>['resumenIntegral']>
+}) {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const pctSaving = (a: number, b: number) => a > 0 ? Math.round(((a - b) / a) * 100) : 0
+
+  // Get first eligible employee for rate-based sub-item calculations
+  const firstEligible = resumen.resultadosPorEmpleado.find(e => e.elegibleParaIntegral)
+  const numElegibles = resumen.empleadosElegibles || 1
+  const salarioBase = firstEligible?.salarioActual ?? 0
+  const ibcActual = Math.round(salarioBase * 0.7) // IBC actual = 70% del salario integral actual
+  const ibc = firstEligible?.estructuraPropuesta.factorSalarial ?? 0 // IBC propuesto = 70% del integral minimo
+
+  // Sub-item breakdown rows for each category
+  type SubItem = { label: string; ratePct: string; actual: number; propuesto: number; note?: string }
+
+  const ssSubItems: SubItem[] = [
+    {
+      label: 'Salud (empleador)',
+      ratePct: '8.5%',
+      actual: ibcActual * 0.085 * numElegibles,
+      propuesto: ibc * 0.085 * numElegibles,
+    },
+    {
+      label: 'Pension',
+      ratePct: '12%',
+      actual: ibcActual * 0.12 * numElegibles,
+      propuesto: ibc * 0.12 * numElegibles,
+    },
+    {
+      label: 'ARL',
+      ratePct: '0.5-7%',
+      actual: resumen.resultadosPorEmpleado.filter(e => e.elegibleParaIntegral).reduce((s, e) => s + e.costoActual.seguridadSocial, 0) - (ibcActual * (0.085 + 0.12) * numElegibles),
+      propuesto: resumen.resultadosPorEmpleado.filter(e => e.elegibleParaIntegral).reduce((s, e) => s + e.costoPropuesto.seguridadSocial, 0) - (ibc * (0.085 + 0.12) * numElegibles),
+      note: 'Varia segun nivel de riesgo'
+    }
+  ]
+
+  // Integral NUNCA aplica exoneración (Art. 114-1 E.T.: integral ≥ 13 SMMLV > 10 SMMLV)
+  const parafSubItems: SubItem[] = [
+    {
+      label: 'SENA',
+      ratePct: '2%',
+      actual: ibcActual * 0.02 * numElegibles,
+      propuesto: ibc * 0.02 * numElegibles,
+      note: 'Sin exoneracion (integral > 10 SMMLV)'
+    },
+    {
+      label: 'ICBF',
+      ratePct: '3%',
+      actual: ibcActual * 0.03 * numElegibles,
+      propuesto: ibc * 0.03 * numElegibles,
+      note: 'Sin exoneracion (integral > 10 SMMLV)'
+    },
+    {
+      label: 'Caja de Compensacion',
+      ratePct: '4%',
+      actual: ibcActual * 0.04 * numElegibles,
+      propuesto: ibc * 0.04 * numElegibles,
+    }
+  ]
+
+  const categories = [
+    {
+      key: 'ss',
+      title: 'Seguridad Social',
+      accentColor: 'blue' as const,
+      tradTotal: resumen.resultadosPorEmpleado
+        .filter(e => e.elegibleParaIntegral)
+        .reduce((s, e) => s + e.costoActual.seguridadSocial, 0),
+      tikinTotal: resumen.resultadosPorEmpleado
+        .filter(e => e.elegibleParaIntegral)
+        .reduce((s, e) => s + e.costoPropuesto.seguridadSocial, 0),
+      explanation: 'Se calculan sobre el IBC (70% del integral). Al bajar el integral de ' + formatCOP(salarioBase) + ' al minimo de ' + formatCOP(firstEligible?.estructuraPropuesta.salarioIntegral ?? 0) + ', el IBC se reduce.',
+      legalRef: 'Art. 18, Ley 100/1993',
+      baseActual: `IBC actual: ${formatCOP(ibcActual)} (70% de ${formatCOP(salarioBase)})`,
+      basePropuesto: `IBC propuesto: ${formatCOP(ibc)} (70% de ${formatCOP(firstEligible?.estructuraPropuesta.salarioIntegral ?? 0)})`,
+      subItems: ssSubItems,
+    },
+    {
+      key: 'paraf',
+      title: 'Aportes Parafiscales',
+      accentColor: 'amber' as const,
+      tradTotal: resumen.resultadosPorEmpleado
+        .filter(e => e.elegibleParaIntegral)
+        .reduce((s, e) => s + e.costoActual.parafiscales, 0),
+      tikinTotal: resumen.resultadosPorEmpleado
+        .filter(e => e.elegibleParaIntegral)
+        .reduce((s, e) => s + e.costoPropuesto.parafiscales, 0),
+      explanation: 'Se calculan sobre el IBC (70% del integral). Integral siempre paga SENA + ICBF + Caja (Art. 114-1 E.T. no aplica exoneracion porque integral > 10 SMMLV).',
+      legalRef: 'Ley 789/2002 Art. 49, Art. 114-1 E.T.',
+      baseActual: `IBC actual: ${formatCOP(ibcActual)} (70% de ${formatCOP(salarioBase)})`,
+      basePropuesto: `IBC propuesto: ${formatCOP(ibc)} (70% de ${formatCOP(firstEligible?.estructuraPropuesta.salarioIntegral ?? 0)})`,
+      subItems: parafSubItems,
+    },
+  ]
+
+  const colorStyles = {
+    blue: { borderL: 'border-l-blue-500', dot: 'bg-blue-500', bg: 'bg-blue-50' },
+    amber: { borderL: 'border-l-amber-500', dot: 'bg-amber-500', bg: 'bg-amber-50' },
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header card */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-5">
+        <h3 className="text-lg font-semibold text-gray-900">Comparativo de Cargas del Empleador</h3>
+        <p className="text-sm text-gray-500 mt-1">Cuanto paga el empleador en aportes: esquema actual vs reestructuracion con integral minimo + bonos</p>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="flex items-center gap-2 px-3 py-2 bg-red-50/60 rounded-lg border border-red-100">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-400 flex-shrink-0" />
+            <span className="text-xs text-red-700">Actual &mdash; integral de {formatCOP(salarioBase)}, IBC {formatCOP(ibcActual)}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50/60 rounded-lg border border-emerald-100">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" />
+            <span className="text-xs text-emerald-700">Propuesto &mdash; integral minimo + bonos, IBC {formatCOP(ibc)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Category cards */}
+      {categories.map((cat, idx) => {
+        const saving = cat.tradTotal - cat.tikinTotal
+        const pct = pctSaving(cat.tradTotal, cat.tikinTotal)
+        const isOpen = openSections[cat.key]
+        const styles = colorStyles[cat.accentColor]
+
+        return (
+          <div key={cat.key} className={`bg-white rounded-xl shadow-sm border border-gray-200 ${styles.borderL} border-l-4 overflow-hidden`}>
+            <button
+              type="button"
+              onClick={() => toggleSection(cat.key)}
+              className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-gray-50/50 transition-colors"
+              aria-expanded={isOpen}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-2.5 h-2.5 rounded-full ${styles.dot} flex-shrink-0`} />
+                <span className="font-semibold text-gray-900 text-sm">{cat.title}</span>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="hidden sm:flex items-center gap-2 text-sm">
+                  <span className="text-gray-400 tabular-nums">{formatCOP(cat.tradTotal)}</span>
+                  <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                  <span className="font-medium text-gray-900 tabular-nums">{formatCOP(cat.tikinTotal)}</span>
+                </div>
+                {saving > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                    &minus;{pct}%
+                  </span>
+                )}
+                <svg className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
+
+            {isOpen && (
+              <div className="border-t border-gray-100 px-5 py-4 space-y-4">
+                <p className="text-xs text-gray-500">{cat.explanation} <span className="text-gray-400">({cat.legalRef})</span></p>
+
+                {/* Base comparison */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="px-3 py-2 bg-red-50/50 rounded-lg border border-red-100">
+                    <p className="text-[11px] font-medium text-red-600 uppercase tracking-wide mb-0.5">Actual</p>
+                    <p className="text-xs text-red-700">{cat.baseActual}</p>
+                  </div>
+                  <div className="px-3 py-2 bg-emerald-50/50 rounded-lg border border-emerald-100">
+                    <p className="text-[11px] font-medium text-emerald-600 uppercase tracking-wide mb-0.5">Propuesto</p>
+                    <p className="text-xs text-emerald-700">{cat.basePropuesto}</p>
+                  </div>
+                </div>
+
+                {/* Sub-item table */}
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm" role="table">
+                    <thead>
+                      <tr className="bg-gray-50 text-xs text-gray-500">
+                        <th className="text-left px-3 py-2 font-medium" scope="col">Concepto</th>
+                        <th className="text-center px-3 py-2 font-medium" scope="col">Tasa</th>
+                        <th className="text-right px-3 py-2 font-medium" scope="col">
+                          <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-400" />Actual</span>
+                        </th>
+                        <th className="text-right px-3 py-2 font-medium" scope="col">
+                          <span className="inline-flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Propuesto</span>
+                        </th>
+                        <th className="text-right px-3 py-2 font-medium" scope="col">Ahorro</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {cat.subItems.map((item, i) => {
+                        const itemSaving = item.actual - item.propuesto
+                        return (
+                          <tr key={i} className="hover:bg-gray-50/50">
+                            <td className="px-3 py-2 text-gray-700">
+                              {item.label}
+                              {item.note && <span className="block text-[10px] text-gray-400">{item.note}</span>}
+                            </td>
+                            <td className="px-3 py-2 text-center text-gray-500 tabular-nums text-xs">{item.ratePct}</td>
+                            <td className="px-3 py-2 text-right text-gray-600 tabular-nums">{formatCOP(item.actual)}</td>
+                            <td className="px-3 py-2 text-right tabular-nums font-medium text-gray-900">
+                              {item.propuesto === 0 ? <span className="text-emerald-600">$0</span> : formatCOP(item.propuesto)}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {itemSaving > 0 ? (
+                                <span className="text-emerald-600 font-medium">&minus;{formatCOP(itemSaving)}</span>
+                              ) : (
+                                <span className="text-gray-400">$0</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-gray-50 font-semibold text-sm">
+                        <td className="px-3 py-2.5 text-gray-900" colSpan={2}>Subtotal</td>
+                        <td className="px-3 py-2.5 text-right text-gray-600 tabular-nums">{formatCOP(cat.tradTotal)}</td>
+                        <td className="px-3 py-2.5 text-right text-gray-900 tabular-nums">{formatCOP(cat.tikinTotal)}</td>
+                        <td className="px-3 py-2.5 text-right text-emerald-600 tabular-nums">
+                          {saving > 0 ? <>&minus;{formatCOP(saving)}</> : '$0'}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {numElegibles > 1 && (
+                  <p className="text-[11px] text-gray-400">Montos totales para {numElegibles} empleados elegibles.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Total Ahorro Patronal */}
+      {(() => {
+        const totalActual = categories.reduce((s, c) => s + c.tradTotal, 0)
+        const totalPropuesto = categories.reduce((s, c) => s + c.tikinTotal, 0)
+        const totalSaving = totalActual - totalPropuesto
+        const totalPct = pctSaving(totalActual, totalPropuesto)
+        return totalSaving > 0 ? (
+          <div className="bg-emerald-50 border-2 border-emerald-200 rounded-xl px-5 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-bold text-emerald-900">Ahorro Total en Aportes Patronales</p>
+                <p className="text-xs text-emerald-600">Seguridad Social + Parafiscales (al reducir el IBC de 70% de {formatCOP(salarioBase)} a 70% de {formatCOP(firstEligible?.estructuraPropuesta.salarioIntegral ?? 0)})</p>
+              </div>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className="text-xl font-bold text-emerald-700">{formatCOP(totalSaving)}<span className="text-sm font-normal text-emerald-500">/mes</span></p>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-200 text-emerald-800">
+                &minus;{totalPct}%
+              </span>
+            </div>
+          </div>
+        ) : null
+      })()}
+
+    </div>
+  )
+}
+
+// ============================================
+// Bonus Breakdown Card (desglose por bono + tarifa)
+// ============================================
+
+function IntegralBonusBreakdown({
+  desglose,
+  comisiones
+}: {
+  desglose: BonusTotals[]
+  comisiones: TikinCommission
+}) {
+  // Build per-category fee info
+  const categoryFees: Array<{
+    label: string
+    monto: number
+    feePct: number
+    feeAmount: number
+    color: string
+  }> = []
+
+  if (comisiones.montoBaseMeraLiberalidad > 0) {
+    categoryFees.push({
+      label: 'Mera Liberalidad',
+      monto: comisiones.montoBaseMeraLiberalidad,
+      feePct: comisiones.porcentajeFee * 100,
+      feeAmount: comisiones.feeBaseMeraLiberalidad,
+      color: 'blue'
+    })
+  }
+  if (comisiones.montoBaseAlimentacion > 0) {
+    const pct = (comisiones.feeBaseAlimentacion / comisiones.montoBaseAlimentacion) * 100
+    categoryFees.push({
+      label: 'Alimentacion',
+      monto: comisiones.montoBaseAlimentacion,
+      feePct: pct,
+      feeAmount: comisiones.feeBaseAlimentacion,
+      color: 'yellow'
+    })
+  }
+  if (comisiones.montoBaseViaticos > 0) {
+    const pct = (comisiones.feeBaseViaticos / comisiones.montoBaseViaticos) * 100
+    categoryFees.push({
+      label: 'Viaticos',
+      monto: comisiones.montoBaseViaticos,
+      feePct: pct,
+      feeAmount: comisiones.feeBaseViaticos,
+      color: 'indigo'
+    })
+  }
+  if (comisiones.montoBaseReparticionUtilidades > 0) {
+    const pct = (comisiones.feeBaseReparticionUtilidades / comisiones.montoBaseReparticionUtilidades) * 100
+    categoryFees.push({
+      label: 'Reparticion de Utilidades',
+      monto: comisiones.montoBaseReparticionUtilidades,
+      feePct: pct,
+      feeAmount: comisiones.feeBaseReparticionUtilidades,
+      color: 'emerald'
+    })
+  }
+  if (comisiones.montoDotacion > 0) {
+    categoryFees.push({
+      label: 'Dotacion',
+      monto: comisiones.montoDotacion,
+      feePct: 0,
+      feeAmount: 0,
+      color: 'gray'
+    })
+  }
+
+  const tipoBreakdown = desglose.filter(d => d.montoTotal > 0)
+  const totalMonto = categoryFees.reduce((s, c) => s + c.monto, 0)
+  const totalFee = categoryFees.reduce((s, c) => s + c.feeAmount, 0)
+
+  const colorMap: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+    blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+    yellow: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
+    indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
+    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+    gray: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200', dot: 'bg-gray-400' }
+  }
+
+  if (categoryFees.length === 0) return null
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900">Desglose de Bonos y Tarifas</h3>
+        <p className="text-sm text-gray-500 mt-1">Monto asignado por categoria de bono y la tarifa Tikin que aplica</p>
+      </div>
+
+      <div className="p-6">
+        {/* Per-type detail */}
+        {tipoBreakdown.length > 0 && (
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Detalle por tipo de bono</p>
+            <div className="space-y-2">
+              {tipoBreakdown.map(item => {
+                const meta = BONUS_TYPES_METADATA[item.tipoBono]
+                if (!meta) return null
+                const catFee = categoryFees.find(c => {
+                  if (meta.categoria === BonusCategory.MERA_LIBERALIDAD) return c.label === 'Mera Liberalidad'
+                  if (meta.categoria === BonusCategory.ALIMENTACION) return c.label === 'Alimentacion'
+                  if (meta.categoria === BonusCategory.VIATICOS) return c.label === 'Viaticos'
+                  if (meta.categoria === BonusCategory.REPARTICION_UTILIDADES) return c.label === 'Reparticion de Utilidades'
+                  if (meta.categoria === BonusCategory.DOTACION) return c.label === 'Dotacion'
+                  return false
+                })
+                const feePct = catFee?.feePct ?? 0
+
+                return (
+                  <div key={item.tipoBono} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-lg flex-shrink-0">{meta.icono}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{meta.nombre}</p>
+                        <p className="text-xs text-gray-400">{item.totalEmpleados} empleado{item.totalEmpleados !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <p className="text-sm font-semibold text-gray-900 tabular-nums">{formatCOP(item.montoTotal)}</p>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
+                        feePct === 0
+                          ? 'bg-gray-100 text-gray-500'
+                          : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {feePct === 0 ? 'Sin fee' : `${feePct.toFixed(feePct % 1 === 0 ? 0 : 2)}%`}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Category summary */}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Resumen por categoria</p>
+          <div className="space-y-2">
+            {categoryFees.map(cat => {
+              const styles = colorMap[cat.color] || colorMap.gray
+              return (
+                <div key={cat.label} className={`flex items-center justify-between rounded-lg px-4 py-3 border ${styles.border} ${styles.bg}`}>
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-2.5 h-2.5 rounded-full ${styles.dot}`} />
+                    <span className={`text-sm font-medium ${styles.text}`}>{cat.label}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-semibold text-gray-900 tabular-nums">{formatCOP(cat.monto)}</span>
+                    <div className="text-right min-w-[80px]">
+                      <span className="text-xs text-gray-500">
+                        {cat.feePct === 0 ? 'Sin fee' : `Fee ${cat.feePct.toFixed(cat.feePct % 1 === 0 ? 0 : 2)}%`}
+                      </span>
+                      {cat.feeAmount > 0 && (
+                        <p className="text-xs font-medium text-gray-700 tabular-nums">{formatCOP(cat.feeAmount)}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Totals row */}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 px-4">
+            <span className="text-sm font-bold text-gray-900">Total Bonos</span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-bold text-gray-900 tabular-nums">{formatCOP(totalMonto)}</span>
+              <div className="text-right min-w-[80px]">
+                <span className="text-xs text-gray-500">Fee total</span>
+                <p className="text-xs font-bold text-gray-900 tabular-nums">{formatCOP(totalFee)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
 }
 
-/**
- * Expandable employee row — simplified
- */
-function EmployeeRow({
-  emp,
-  isExpanded,
-  onToggle
+// ============================================
+// Commission Summary (waterfall: Ahorro − Comision = Beneficio)
+// ============================================
+
+function IntegralCommissionSummary({
+  ahorroMensual,
+  ahorroAnual,
+  comisiones,
+  beneficioNetoMensual,
+  beneficioNetoAnual
 }: {
-  emp: IntegralEmployeeResult
-  isExpanded: boolean
-  onToggle: () => void
+  ahorroMensual: number
+  ahorroAnual: number
+  comisiones: TikinCommission
+  beneficioNetoMensual: number
+  beneficioNetoAnual: number
 }) {
+  const roi = comisiones.totalConIva > 0
+    ? (ahorroMensual / comisiones.totalConIva).toFixed(1)
+    : '0'
+  const isPositive = beneficioNetoMensual >= 0
+
   return (
-    <>
-      <tr
-        className="border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors"
-        onClick={onToggle}
-        role="button"
-        aria-expanded={isExpanded}
-      >
-        <td className="py-3 pr-4">
-          <div className="flex items-center gap-2">
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            <span className="font-medium text-gray-900">{emp.empleadoNombre}</span>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900">Beneficio Neto para tu Empresa</h3>
+        <p className="text-sm text-gray-500 mt-1">Del ahorro en aportes patronales (SS + Parafiscales) se descuenta la comision Tikin por gestion de bonos</p>
+      </div>
+
+      <div className="p-6">
+        {/* Waterfall: Ahorro − Comision = Beneficio */}
+        <div className="flex flex-col md:flex-row items-stretch gap-3">
+          {/* Ahorro Bruto */}
+          <div className="flex-1 rounded-xl border border-indigo-200 bg-indigo-50/50 p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-indigo-900">Ahorro en Aportes</span>
+            </div>
+            <p className="text-2xl font-bold text-indigo-700">{formatCOP(ahorroMensual)}</p>
+            <p className="text-xs text-indigo-500 mt-1">{formatCOP(ahorroAnual)} / ano</p>
           </div>
-        </td>
-        <td className="py-3 pr-4 text-right text-gray-600">{formatCOP(emp.salarioActual)}</td>
-        <td className="py-3 pr-4 text-right">
-          {emp.elegibleParaIntegral ? (
-            <span className="font-semibold text-green-600">{formatCOP(emp.ahorroEmpleador.totalMensual)}</span>
-          ) : <span className="text-gray-400">—</span>}
-        </td>
-        <td className="py-3 text-center">
-          {emp.elegibleParaIntegral ? (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-              Elegible
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-              No elegible
-            </span>
-          )}
-        </td>
-      </tr>
 
-      {/* Expanded — eligible */}
-      {isExpanded && emp.elegibleParaIntegral && (
-        <tr>
-          <td colSpan={4} className="pb-4 pt-1 px-4">
-            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-              {/* Proposed structure */}
-              <div className="flex flex-col sm:flex-row items-center gap-2 justify-center text-sm">
-                <div className="text-center px-3 py-2 bg-purple-50 rounded-lg">
-                  <p className="text-xs text-purple-500">Integral</p>
-                  <p className="font-bold text-purple-800">{formatCOP(emp.estructuraPropuesta.salarioIntegral)}</p>
-                </div>
-                <span className="text-purple-300 font-bold">+</span>
-                <div className="text-center px-3 py-2 bg-orange-50 rounded-lg">
-                  <p className="text-xs text-orange-500">Bonos</p>
-                  <p className="font-bold text-orange-700">{formatCOP(emp.estructuraPropuesta.montoBonos)}</p>
-                </div>
-                <span className="text-gray-300 font-bold">=</span>
-                <div className="text-center px-3 py-2 bg-green-50 rounded-lg">
-                  <p className="text-xs text-green-600">Total</p>
-                  <p className="font-bold text-green-700">{formatCOP(emp.estructuraPropuesta.compensacionTotal)}</p>
-                </div>
-              </div>
-
-              {/* Cost comparison grid */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Costo Actual</p>
-                  <div className="space-y-1">
-                    <div className="flex justify-between"><span className="text-gray-500">SS</span><span className="text-gray-700">{formatCOP(emp.costoActual.seguridadSocial)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Parafiscales</span><span className="text-gray-700">{formatCOP(emp.costoActual.parafiscales)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Prestaciones</span><span className="text-gray-700">{formatCOP(emp.costoActual.prestaciones)}</span></div>
-                    <div className="flex justify-between font-semibold pt-1 border-t border-gray-200"><span>Total</span><span>{formatCOP(emp.costoActual.total)}</span></div>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold text-purple-500 uppercase tracking-wide mb-2">Costo Propuesto</p>
-                  <div className="space-y-1">
-                    <div className="flex justify-between"><span className="text-gray-500">SS (70%)</span><span className="text-purple-700">{formatCOP(emp.costoPropuesto.seguridadSocial)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Parafiscales (70%)</span><span className="text-purple-700">{formatCOP(emp.costoPropuesto.parafiscales)}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Prestaciones</span><span className="text-purple-700">$0</span></div>
-                    <div className="flex justify-between font-semibold pt-1 border-t border-purple-200"><span className="text-purple-700">Total</span><span className="text-purple-800">{formatCOP(emp.costoPropuesto.total)}</span></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Savings summary */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center text-sm">
-                <span className="text-green-700">Ahorro: </span>
-                <span className="font-bold text-green-700">{formatCOP(emp.ahorroEmpleador.totalMensual)}/mes</span>
-                <span className="text-green-600"> | {formatCOP(emp.ahorroEmpleador.totalAnual)}/ano</span>
-                <span className="text-green-500 ml-1">(-{formatPercent(emp.ahorroEmpleador.porcentaje)})</span>
-              </div>
-
-              {/* Employee impact */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
-                <span className="font-medium">Para el empleado:</span>{' '}
-                ingreso neto pasa de {formatCOP(emp.impactoEmpleado.ingresoNetoActual)} a{' '}
-                <span className="font-bold text-green-700">{formatCOP(emp.impactoEmpleado.ingresoNetoPropuesto)}</span>{' '}
-                (+{formatCOP(emp.impactoEmpleado.diferenciaIngreso)}/mes)
-              </div>
+          {/* Minus operator */}
+          <div className="flex items-center justify-center py-1 md:py-0">
+            <div className="w-8 h-8 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center">
+              <span className="text-gray-500 font-bold text-lg leading-none">&minus;</span>
             </div>
-          </td>
-        </tr>
-      )}
+          </div>
 
-      {/* Expanded — not eligible */}
-      {isExpanded && !emp.elegibleParaIntegral && (
-        <tr>
-          <td colSpan={4} className="pb-4 pt-1 px-4">
-            <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-              <p className="text-sm text-amber-800">{emp.razonNoElegible}</p>
+          {/* Comision Tikin */}
+          <div className="flex-1 rounded-xl border border-gray-200 bg-gray-50 p-5">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-gray-700">Comision Tikin</span>
             </div>
-          </td>
-        </tr>
-      )}
-    </>
+            <p className="text-2xl font-bold text-gray-800">{formatCOP(comisiones.totalConIva)}</p>
+            <p className="text-xs text-gray-500 mt-1">Fee {formatCOP(comisiones.feeTotal)} + IVA {formatCOP(comisiones.iva)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{formatCOP(comisiones.totalConIva * 12)} / ano</p>
+          </div>
+
+          {/* Equals operator */}
+          <div className="flex items-center justify-center py-1 md:py-0">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isPositive ? 'bg-emerald-100 border border-emerald-200' : 'bg-red-100 border border-red-200'}`}>
+              <span className={`font-bold text-lg leading-none ${isPositive ? 'text-emerald-600' : 'text-red-600'}`}>=</span>
+            </div>
+          </div>
+
+          {/* Beneficio Neto */}
+          <div className={`flex-1 rounded-xl border p-5 ${
+            isPositive ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50'
+          }`}>
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`w-7 h-7 rounded-full flex items-center justify-center ${isPositive ? 'bg-emerald-100' : 'bg-red-100'}`}>
+                {isPositive ? (
+                  <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
+                  </svg>
+                )}
+              </div>
+              <span className={`text-sm font-semibold ${isPositive ? 'text-emerald-900' : 'text-red-900'}`}>Beneficio Neto</span>
+            </div>
+            <p className={`text-2xl font-bold ${isPositive ? 'text-emerald-700' : 'text-red-700'}`}>{formatCOP(beneficioNetoMensual)}</p>
+            <p className={`text-xs mt-1 ${isPositive ? 'text-emerald-500' : 'text-red-500'}`}>{formatCOP(beneficioNetoAnual)} / ano</p>
+          </div>
+        </div>
+
+        {/* ROI indicator */}
+        {comisiones.totalConIva > 0 && ahorroMensual > 0 && (
+          <div className="mt-5 flex items-center gap-3 bg-emerald-50 rounded-lg px-4 py-3 border border-emerald-200">
+            <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <p className="text-sm text-emerald-800">
+              <span className="font-bold">ROI {roi}x</span> &mdash; Por cada $1 de comision, tu empresa ahorra ${roi} en cargas laborales
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
+

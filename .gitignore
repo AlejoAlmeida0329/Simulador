@@ -31,3 +31,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test artifacts
+*.png
+*.pdf
+.playwright-mcp/

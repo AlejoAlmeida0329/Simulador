@@ -21,8 +21,7 @@ const PASOS_INTEGRAL = [
 export function WizardStepper() {
   const { pasoActual, setPasoActual, flujoSeleccionado } = useBonosStore()
 
-  const isIntegral = flujoSeleccionado === 'salario_integral'
-  const PASOS = isIntegral ? PASOS_INTEGRAL : PASOS_BONOS
+  const PASOS = flujoSeleccionado === 'salario_integral' ? PASOS_INTEGRAL : PASOS_BONOS
 
   const handlePasoClick = (paso: number) => {
     // Solo permitir retroceder, no avanzar
@@ -42,9 +41,7 @@ export function WizardStepper() {
               disabled={paso.numero > pasoActual}
               className={`relative flex items-center justify-center w-12 h-12 rounded-full border-2 font-semibold transition-all duration-300 ${
                 paso.numero === pasoActual
-                  ? isIntegral
-                    ? 'bg-purple-600 text-white border-purple-600 shadow-lg shadow-purple-200 scale-110 cursor-default'
-                    : 'bg-tikin-red text-white border-tikin-red shadow-lg shadow-red-200 scale-110 cursor-default'
+                  ? 'bg-tikin-red text-white border-tikin-red shadow-lg shadow-red-200 scale-110 cursor-default'
                   : paso.numero < pasoActual
                   ? 'bg-green-500 text-white border-green-500 shadow-md cursor-pointer'
                   : 'bg-white text-gray-400 border-gray-300 cursor-not-allowed'
@@ -58,9 +55,7 @@ export function WizardStepper() {
                 paso.numero
               )}
               {paso.numero === pasoActual && (
-                <span className={`absolute -inset-1 rounded-full opacity-20 animate-pulse ${
-                  isIntegral ? 'bg-purple-600' : 'bg-tikin-red'
-                }`}></span>
+                <span className="absolute -inset-1 rounded-full bg-tikin-red opacity-20 animate-pulse"></span>
               )}
             </button>
 
@@ -68,7 +63,7 @@ export function WizardStepper() {
             <div className="mt-3 text-center">
               <div className={`text-sm font-semibold transition-colors ${
                 paso.numero === pasoActual
-                  ? isIntegral ? 'text-purple-600' : 'text-tikin-red'
+                  ? 'text-tikin-red'
                   : paso.numero < pasoActual ? 'text-green-600' : 'text-gray-500'
               }`}>
                 {paso.nombre}

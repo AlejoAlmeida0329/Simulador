@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useBonosStore } from '@/store/bonosStore'
-import { DataInputMethod } from '@/lib/bonos/constants'
+import { DataInputMethod, MIN_SALARIO_BONOS } from '@/lib/bonos/constants'
 import type { LoteBonos2 } from '@/lib/bonos/types'
 import type { ARLRiskLevel } from '@/lib/constants/parafiscales'
 import { ARLRiskSelector } from './ARLRiskSelector'
@@ -56,6 +56,9 @@ export function DataInputStep() {
   // ---- Delete confirmation ----
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
+  // ---- Salary validation error ----
+  const [salarioError, setSalarioError] = useState<string | null>(null)
+
   const tieneData = lotes.length > 0 || empleados.length > 0
 
   // ---- Totals across all lotes ----
@@ -91,6 +94,12 @@ export function DataInputStep() {
   const handleAgregarLote = () => {
     if (!loteNombre.trim() || !loteCantidad || !loteSalario) return
 
+    if (Number(loteSalario) < MIN_SALARIO_BONOS) {
+      setSalarioError(`El salario debe ser minimo ${formatCOP(MIN_SALARIO_BONOS)}. La base salarial (60%) no puede ser inferior a 1 SMMLV (Ley 1393/2010 Art. 30).`)
+      return
+    }
+    setSalarioError(null)
+
     addLote({
       nombre: loteNombre.trim(),
       cantidad: Number(loteCantidad),
@@ -109,6 +118,12 @@ export function DataInputStep() {
 
   const handleAgregarEmpleado = () => {
     if (!empNombre.trim() || !empSalario) return
+
+    if (Number(empSalario) < MIN_SALARIO_BONOS) {
+      setSalarioError(`El salario debe ser minimo ${formatCOP(MIN_SALARIO_BONOS)}. La base salarial (60%) no puede ser inferior a 1 SMMLV (Ley 1393/2010 Art. 30).`)
+      return
+    }
+    setSalarioError(null)
 
     addEmpleado({
       nombre: empNombre.trim(),
@@ -442,12 +457,23 @@ export function DataInputStep() {
                 </div>
               )}
 
+              {/* Salary minimum warning */}
+              {salarioError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                  <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <p className="text-xs text-red-700">{salarioError}</p>
+                </div>
+              )}
+
               {/* Form actions */}
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => {
                     setMostrarFormLote(false)
                     resetLoteForm()
+                    setSalarioError(null)
                   }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
                 >
@@ -639,11 +665,22 @@ export function DataInputStep() {
                 <ARLRiskSelector value={empArl} onChange={setEmpArl} compact />
               </div>
 
+              {/* Salary minimum warning */}
+              {salarioError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-start gap-2">
+                  <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                  <p className="text-xs text-red-700">{salarioError}</p>
+                </div>
+              )}
+
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => {
                     setMostrarFormEmpleado(false)
                     resetEmpleadoForm()
+                    setSalarioError(null)
                   }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
                 >

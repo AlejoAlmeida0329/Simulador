@@ -21,13 +21,17 @@ import {
   EmployeeIntegral,
   LoteIntegral,
   IntegralFinancialSummary,
-  BonusConfigItem
+  BonusConfigItem,
+  BonusTotals
 } from '@/lib/bonos/types'
 import {
   DEFAULT_SALARY_PERCENTAGE,
   DEFAULT_BONUS_PERCENTAGE,
   DataInputMethod,
-  BonusTypeEnum
+  BonusTypeEnum,
+  BonusCategory,
+  BONUS_TYPES_METADATA,
+  SALARIO_INTEGRAL_MINIMO
 } from '@/lib/bonos/constants'
 import { ValidationEngine } from '@/lib/bonos/validationEngine'
 import {
@@ -36,6 +40,7 @@ import {
 } from '@/lib/bonos/calculations'
 import { getActiveFees } from '@/lib/bonos/fee-provider'
 import { calculateIntegralSummary } from '@/lib/bonos/integral-calculations'
+import { calcularLimiteLey1393 } from '@/lib/bonos/integral-cap'
 import { ARLRiskLevel } from '@/lib/constants/parafiscales'
 
 interface Bonos2Store extends Bonos2WizardState {
@@ -82,7 +87,7 @@ interface Bonos2Store extends Bonos2WizardState {
   removeEmpleadoIntegral: (id: string) => void
   addLoteIntegral: (lote: Omit<LoteIntegral, 'id'>) => void
   removeLoteIntegral: (id: string) => void
-  calcularResumenIntegral: () => void
+  calcularResumenIntegral: () => Promise<void>
 
   // Persistencia
   marcarComoGuardado: (cotizacionId: string) => void
@@ -494,7 +499,8 @@ export const useBonosStore = create<Bonos2Store>()(
           resumenFinanciero.totalBonosAlimentacion,
           resumenFinanciero.totalBonosDotacion,
           resumenFinanciero.totalBonosViaticos || 0,
-          fees
+          fees,
+          resumenFinanciero.totalBonosReparticionUtilidades || 0
         )
 
         set({
@@ -603,8 +609,8 @@ export const useBonosStore = create<Bonos2Store>()(
         }))
       },
 
-      calcularResumenIntegral: () => {
-        const { empleadosIntegral, lotesIntegral, datosEmpresa } = get()
+      calcularResumenIntegral: async () => {
+        const { empleadosIntegral, lotesIntegral, datosEmpresa, configuracion } = get()
 
         // Expand lotes into individual employees (with ARL inherited from lote)
         const todosEmpleados: EmployeeIntegral[] = [...empleadosIntegral]
@@ -621,13 +627,139 @@ export const useBonosStore = create<Bonos2Store>()(
           }
         })
 
-        // Read regimen from company data
-        const regimen = datosEmpresa?.regimenParafiscales || 'general'
+        // Integral NUNCA aplica exoneración (Art. 114-1 E.T.: integral ≥ 13 SMMLV > 10 SMMLV)
+        const resumen = calculateIntegralSummary(todosEmpleados)
 
-        const resumen = calculateIntegralSummary(todosEmpleados, undefined, regimen)
+        // ============================================
+        // COMISIÓN POR RANGOS: calcular montos por categoría de bonos
+        // ============================================
+        const bonusConfig = configuracion.bonusConfig
+        const tiposSeleccionados = configuracion.bonusSelection.tiposSeleccionados
+
+        // Calculate average salary and total eligible employees for bonus resolution
+        const elegibles = todosEmpleados.filter(e => e.salarioActual >= SALARIO_INTEGRAL_MINIMO)
+        const totalNomina = todosEmpleados.reduce((sum, e) => sum + e.salarioActual, 0)
+        const salarioPromedio = todosEmpleados.length > 0 ? totalNomina / todosEmpleados.length : 0
+
+        // Helper to resolve bonus amount
+        const resolveBonus = (config: BonusConfigItem, salary: number): number => {
+          if (config.mode === 'fijo') return config.valor
+          return salary * config.valor / 100
+        }
+
+        // Aggregate per-category totals across eligible employees
+        let totalML = 0
+        let totalAlimentacion = 0
+        let totalDotacion = 0
+        let totalViaticos = 0
+        let totalReparticion = 0
+        const desglosePorTipo: BonusTotals[] = []
+
+        for (const tipo of tiposSeleccionados) {
+          const cfg = bonusConfig[tipo]
+          if (!cfg || cfg.valor <= 0) continue
+          const meta = BONUS_TYPES_METADATA[tipo as BonusTypeEnum]
+          if (!meta) continue
+
+          const montoPorEmpleado = resolveBonus(cfg, salarioPromedio)
+          const montoTotal = montoPorEmpleado * elegibles.length
+
+          // Accumulate by category
+          switch (meta.categoria) {
+            case BonusCategory.MERA_LIBERALIDAD:
+              totalML += montoTotal
+              break
+            case BonusCategory.ALIMENTACION:
+              totalAlimentacion += montoTotal
+              break
+            case BonusCategory.DOTACION:
+              totalDotacion += montoTotal
+              break
+            case BonusCategory.VIATICOS:
+              totalViaticos += montoTotal
+              break
+            case BonusCategory.REPARTICION_UTILIDADES:
+              totalReparticion += montoTotal
+              break
+          }
+
+          // Build desglose entry
+          desglosePorTipo.push({
+            tipoBono: tipo as BonusTypeEnum,
+            totalEmpleados: elegibles.length,
+            montoPorEmpleado: {
+              min: montoPorEmpleado,
+              max: montoPorEmpleado,
+              promedio: montoPorEmpleado
+            },
+            montoTotal,
+            porcentajeDelTotal: 0 // calculated below
+          })
+        }
+
+        // Calculate percentage of total for each bonus type
+        const totalBonos = totalML + totalAlimentacion + totalDotacion + totalViaticos + totalReparticion
+        for (const d of desglosePorTipo) {
+          d.porcentajeDelTotal = totalBonos > 0 ? (d.montoTotal / totalBonos) * 100 : 0
+        }
+
+        // ============================================
+        // CUMPLIMIENTO LEY 1393/2010 — TOPE 40%
+        // ============================================
+        const numElegibles = elegibles.length || 1
+        const bonosCapadosTotal = totalML + totalAlimentacion
+        const bonosExentosTotal = totalReparticion + totalViaticos + totalDotacion
+        const bonosCapadosPorEmpleado = bonosCapadosTotal / numElegibles
+        const bonosExentosPorEmpleado = bonosExentosTotal / numElegibles
+
+        const ley1393 = calcularLimiteLey1393(
+          SALARIO_INTEGRAL_MINIMO,
+          bonosCapadosPorEmpleado,
+          bonosExentosPorEmpleado
+        )
+
+        const cumplimiento40 = {
+          factorPrestacional: ley1393.factorPrestacional,
+          bonosCapados: bonosCapadosTotal,
+          bonosCapadosPorEmpleado,
+          bonosExentos: bonosExentosTotal,
+          bonosExentosPorEmpleado,
+          totalNoSalarial: ley1393.noSalarialTotal,
+          totalDevengado: ley1393.totalDevengado,
+          porcentajeNoSalarial: ley1393.noSalarialPct,
+          limiteBonosCapPorEmpleado: ley1393.limiteBonosCap,
+          limiteBonosCapTotal: ley1393.limiteBonosCap * numElegibles,
+          holgura: ley1393.holgura * numElegibles,
+          cumple: ley1393.cumple,
+          exceso: ley1393.exceso * numElegibles
+        }
+
+        // Calculate commission using fee by ranges (same model as other flows)
+        const fees = await getActiveFees()
+        const comision = calculateTikinCommissionBonos2(
+          totalML,
+          totalAlimentacion,
+          totalDotacion,
+          totalViaticos,
+          fees,
+          totalReparticion
+        )
+
+        // Update resumen with new commission and bonus breakdown
+        const beneficioNetoMensual = resumen.ahorroTotalMensual - comision.totalConIva
+        const updatedResumen: IntegralFinancialSummary = {
+          ...resumen,
+          comisionTikin: comision,
+          beneficioNetoMensual,
+          beneficioNetoAnual: beneficioNetoMensual * 12,
+          desglosePorTipo,
+          totalBonos,
+          cumplimiento40
+        }
 
         set({
-          resumenIntegral: resumen,
+          resumenIntegral: updatedResumen,
+          comisionesTikin: comision,
           ultimaActualizacion: new Date()
         })
       },

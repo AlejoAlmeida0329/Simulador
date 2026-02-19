@@ -2,28 +2,26 @@
  * Cálculos para flujo de Salario Integral + Bonos
  *
  * Modelo:
- * - Empleado gana $X actualmente como salario ordinario
- * - Se recomienda: dejar el mínimo integral (~$18.5M) + la diferencia como bonos
- * - Ejemplo: $25M → $18.5M integral + $6.5M bonos = $25M total (el empleado recibe lo mismo)
+ * - Empleado YA tiene salario integral de $X (IBC = 70% de $X)
+ * - Se reestructura: integral mínimo (~$22.76M) + la diferencia como bonos Art. 128
+ * - Ejemplo: $40M → $22.76M integral + $17.24M bonos = $40M total (recibe lo mismo)
  *
- * Ahorros empleador (3 fuentes):
- * 1. Seguridad Social: se paga sobre 70% del integral (no 100% del salario original)
- * 2. Parafiscales: se pagan sobre 70% del integral (no 100% del salario original)
- * 3. Prestaciones: $0 — quedan incluidas en el factor prestacional del 30%
+ * Ahorros empleador (2 fuentes — ambos escenarios son integrales):
+ * 1. Seguridad Social: IBC baja de 70%×$40M a 70%×$22.76M
+ * 2. Parafiscales: misma reducción de base
+ * (Prestaciones = $0 en ambos casos — incluidas en el 30% factor prestacional)
  *
  * Beneficio empleado:
- * - Recibe la misma compensación total ($25M)
- * - Paga menos en descuentos de SS (8% sobre 70% del integral, no 8% sobre $25M)
+ * - Recibe la misma compensación total ($40M)
+ * - Descuentos SS bajan (8% sobre IBC menor)
  * - Resultado: más ingreso neto mensual
  *
- * Tikin cobra % del ahorro generado
+ * Tikin cobra fee por gestión de bonos (no % del ahorro)
  */
 
 import {
   SALARIO_INTEGRAL_MINIMO,
   INTEGRAL_FACTOR_SALARIAL,
-  FEE_SALARIO_INTEGRAL,
-  IVA_RATE,
   EMPLEADO_SS_RATE
 } from './constants'
 
@@ -34,8 +32,6 @@ import {
   SENA_RATE,
   ICBF_RATE,
   CAJA_RATE,
-  PRESTACIONES_RATE,
-  UMBRAL_EXONERACION,
   ARLRiskLevel
 } from '@/lib/constants/parafiscales'
 
@@ -43,8 +39,7 @@ import type {
   EmployeeIntegral,
   IntegralEmployeeResult,
   IntegralFinancialSummary,
-  IntegralTikinCommission,
-  RegimenParafiscales
+  TikinCommission,
 } from './types'
 
 /**
@@ -53,28 +48,27 @@ import type {
 export function calculateIntegralForEmployee(
   empleado: EmployeeIntegral,
   arlRiskLevel?: ARLRiskLevel,
-  regimen?: RegimenParafiscales
 ): IntegralEmployeeResult {
   const salarioActual = empleado.salarioActual
   const effectiveArl = empleado.arlRiskLevel || arlRiskLevel || 'III'
   const arlRate = ARL_RATES[effectiveArl]
 
-  // Exemption for current scenario (100% salary as base)
-  const isExoneradoActual = regimen === 'exonerado' && salarioActual < UMBRAL_EXONERACION
-  const healthRateActual = isExoneradoActual ? 0 : HEALTH_RATE
-  const senaRateActual = isExoneradoActual ? 0 : SENA_RATE
-  const icbfRateActual = isExoneradoActual ? 0 : ICBF_RATE
+  // IBC actual = 70% del integral actual (ya es integral)
+  const ibcActual = Math.round(salarioActual * INTEGRAL_FACTOR_SALARIAL)
 
-  const ssEmpleadorRate = healthRateActual + PENSION_RATE + arlRate
-  const parafiscalesRate = senaRateActual + icbfRateActual + CAJA_RATE
+  // Integral NUNCA aplica exoneración: Art. 114-1 E.T. exonera empleados
+  // que devenguen < 10 SMMLV, pero integral mínimo = 13 SMMLV → siempre > 10.
+  // Se pagan todos los aportes: Salud 8.5%, SENA 2%, ICBF 3%, Caja 4%.
+  const ssEmpleadorRate = HEALTH_RATE + PENSION_RATE + arlRate
+  const parafiscalesRate = SENA_RATE + ICBF_RATE + CAJA_RATE
 
   // ============================================
-  // ESCENARIO ACTUAL (salario ordinario)
+  // ESCENARIO ACTUAL (ya es integral — IBC = 70%)
   // ============================================
-  const ssActual = salarioActual * ssEmpleadorRate
-  const parafiscalesActual = salarioActual * parafiscalesRate
-  const prestacionesActual = salarioActual * PRESTACIONES_RATE
-  const costoTotalActual = salarioActual + ssActual + parafiscalesActual + prestacionesActual
+  const ssActual = ibcActual * ssEmpleadorRate
+  const parafiscalesActual = ibcActual * parafiscalesRate
+  const prestacionesActual = 0 // Ya incluidas en el 30% factor prestacional
+  const costoTotalActual = salarioActual + ssActual + parafiscalesActual
 
   // ============================================
   // ELEGIBILIDAD
@@ -84,7 +78,7 @@ export function calculateIntegralForEmployee(
 
   if (!elegible) {
     // Empleado no elegible — retornar estructura vacía
-    const descuentoSsActual = salarioActual * EMPLEADO_SS_RATE
+    const descuentoSsActual = ibcActual * EMPLEADO_SS_RATE
     return {
       empleadoId: empleado.id,
       empleadoNombre: empleado.nombre,
@@ -100,7 +94,7 @@ export function calculateIntegralForEmployee(
         salario: salarioActual,
         seguridadSocial: ssActual,
         parafiscales: parafiscalesActual,
-        prestaciones: prestacionesActual,
+        prestaciones: 0,
         total: costoTotalActual
       },
       costoPropuesto: {
@@ -133,26 +127,18 @@ export function calculateIntegralForEmployee(
   }
 
   // ============================================
-  // ESCENARIO PROPUESTO (integral + bonos)
+  // ESCENARIO PROPUESTO (integral mínimo + bonos)
   // ============================================
   const factorSalarial = Math.round(salarioIntegral * INTEGRAL_FACTOR_SALARIAL)
   const factorPrestacional = salarioIntegral - factorSalarial
   const ibc = factorSalarial // 70% del integral = base para SS y parafiscales
   const montoBonos = salarioActual - salarioIntegral // Diferencia va a bonos
 
-  // Exemption for proposed scenario (IBC = 70% of integral minimum)
-  const isExoneradoPropuesto = regimen === 'exonerado' && ibc < UMBRAL_EXONERACION
-  const healthRatePropuesto = isExoneradoPropuesto ? 0 : HEALTH_RATE
-  const senaRatePropuesto = isExoneradoPropuesto ? 0 : SENA_RATE
-  const icbfRatePropuesto = isExoneradoPropuesto ? 0 : ICBF_RATE
-
-  const ssEmpleadorRatePropuesto = healthRatePropuesto + PENSION_RATE + arlRate
-  const parafiscalesRatePropuesto = senaRatePropuesto + icbfRatePropuesto + CAJA_RATE
-
-  // SS empleador sobre IBC (70% del integral, NO sobre el salario original)
-  const ssPropuesto = ibc * ssEmpleadorRatePropuesto
-  // Parafiscales sobre IBC (70% del integral)
-  const parafiscalesPropuesto = ibc * parafiscalesRatePropuesto
+  // Mismas tasas aplican (integral nunca exonerado)
+  // SS empleador sobre IBC (70% del integral mínimo)
+  const ssPropuesto = ibc * ssEmpleadorRate
+  // Parafiscales sobre IBC (70% del integral mínimo)
+  const parafiscalesPropuesto = ibc * parafiscalesRate
   // Prestaciones = $0 (incluidas en el 30% factor prestacional)
   const prestacionesPropuesto = 0
   // Costo total = integral + bonos + SS sobre IBC + parafiscales sobre IBC
@@ -163,16 +149,16 @@ export function calculateIntegralForEmployee(
   // ============================================
   const ahorroSS = ssActual - ssPropuesto
   const ahorroParafiscales = parafiscalesActual - parafiscalesPropuesto
-  const ahorroPrestaciones = prestacionesActual - prestacionesPropuesto // = todas las prestaciones
+  const ahorroPrestaciones = 0 // Ambos escenarios son integral → prestaciones = $0
   const ahorroTotal = ahorroSS + ahorroParafiscales + ahorroPrestaciones
   const ahorroPorcentaje = costoTotalActual > 0 ? (ahorroTotal / costoTotalActual) * 100 : 0
 
   // ============================================
   // IMPACTO EMPLEADO
   // ============================================
-  // Descuentos SS del empleado: 4% salud + 4% pensión = 8%
-  const descuentoSsActual = salarioActual * EMPLEADO_SS_RATE
-  const descuentoSsPropuesto = ibc * EMPLEADO_SS_RATE // Sobre 70% del integral, NO sobre el total
+  // Descuentos SS del empleado: 4% salud + 4% pensión = 8% sobre IBC (70% del integral)
+  const descuentoSsActual = ibcActual * EMPLEADO_SS_RATE // IBC actual = 70% del integral actual
+  const descuentoSsPropuesto = ibc * EMPLEADO_SS_RATE // IBC propuesto = 70% del integral mínimo
   const ahorroSsEmpleado = descuentoSsActual - descuentoSsPropuesto
 
   // Ingreso neto actual: salario - descuentos SS
@@ -228,40 +214,19 @@ export function calculateIntegralForEmployee(
 }
 
 /**
- * Calcula la comisión Tikin para salario integral
- * Se cobra como % del ahorro generado al empleador
- */
-export function calculateIntegralCommission(
-  ahorroMensualTotal: number,
-  feePercentage: number = FEE_SALARIO_INTEGRAL,
-  ivaRate: number = IVA_RATE
-): IntegralTikinCommission {
-  const feeMensual = ahorroMensualTotal * feePercentage
-  const iva = feeMensual * ivaRate
-  const totalConIvaMensual = feeMensual + iva
-
-  return {
-    ahorroBase: ahorroMensualTotal,
-    porcentajeFee: feePercentage,
-    feeMensual,
-    iva,
-    totalConIvaMensual,
-    totalConIvaAnual: totalConIvaMensual * 12
-  }
-}
-
-/**
  * Calcula el resumen financiero completo del flujo integral
+ *
+ * Nota: La comisión Tikin se calcula en el store usando calculateTikinCommissionBonos2()
+ * con fee por rangos sobre montos de bonos (no % del ahorro).
+ * Esta función retorna un placeholder en comisionTikin que el store sobreescribe.
  */
 export function calculateIntegralSummary(
   empleados: EmployeeIntegral[],
   arlRiskLevel?: ARLRiskLevel,
-  regimen?: RegimenParafiscales
 ): IntegralFinancialSummary {
-  const resultados = empleados.map(emp => calculateIntegralForEmployee(emp, arlRiskLevel, regimen))
+  const resultados = empleados.map(emp => calculateIntegralForEmployee(emp, arlRiskLevel))
 
   const elegibles = resultados.filter(r => r.elegibleParaIntegral)
-  const noElegibles = resultados.filter(r => !r.elegibleParaIntegral)
 
   // Aggregate only eligible employees
   const totalCostoActual = elegibles.reduce((sum, r) => sum + r.costoActual.total, 0)
@@ -274,13 +239,27 @@ export function calculateIntegralSummary(
   const ahorroTotal = ahorroSS + ahorroParafiscales + ahorroPrestaciones
   const ahorroPorcentaje = totalCostoActual > 0 ? (ahorroTotal / totalCostoActual) * 100 : 0
 
-  // Commission on total savings
-  const comision = calculateIntegralCommission(ahorroTotal)
+  // Placeholder commission — overridden in store with calculateTikinCommissionBonos2()
+  const emptyCommission: TikinCommission = {
+    montoBaseMeraLiberalidad: 0,
+    porcentajeFee: 0,
+    feeBaseMeraLiberalidad: 0,
+    montoBaseAlimentacion: 0,
+    feeBaseAlimentacion: 0,
+    montoDotacion: 0,
+    montoBaseViaticos: 0,
+    feeBaseViaticos: 0,
+    montoBaseReparticionUtilidades: 0,
+    feeBaseReparticionUtilidades: 0,
+    feeTotal: 0,
+    iva: 0,
+    totalConIva: 0
+  }
 
   return {
     totalEmpleados: empleados.length,
     empleadosElegibles: elegibles.length,
-    empleadosNoElegibles: noElegibles.length,
+    empleadosNoElegibles: empleados.length - elegibles.length,
     totalCostoActualMensual: totalCostoActual,
     totalCostoActualAnual: totalCostoActual * 12,
     totalCostoPropuestoMensual: totalCostoPropuesto,
@@ -293,9 +272,9 @@ export function calculateIntegralSummary(
     ahorroTotalMensual: ahorroTotal,
     ahorroTotalAnual: ahorroTotal * 12,
     ahorroPorcentaje,
-    comisionTikin: comision,
-    beneficioNetoMensual: ahorroTotal - comision.totalConIvaMensual,
-    beneficioNetoAnual: (ahorroTotal - comision.totalConIvaMensual) * 12,
+    comisionTikin: emptyCommission,
+    beneficioNetoMensual: ahorroTotal,
+    beneficioNetoAnual: ahorroTotal * 12,
     resultadosPorEmpleado: resultados
   }
 }

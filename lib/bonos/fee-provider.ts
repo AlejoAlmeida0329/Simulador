@@ -18,6 +18,7 @@ export interface ActiveFees {
   alimentacion: number
   dotacion: number
   viaticos: number
+  reparticionUtilidades: FeeRange[]
   iva: number
 }
 
@@ -32,6 +33,7 @@ function getDefaultFees(): ActiveFees {
     alimentacion: FEE_ALIMENTACION,
     dotacion: FEE_DOTACION,
     viaticos: FEE_VIATICOS,
+    reparticionUtilidades: FEE_MERA_LIBERALIDAD_RANGES,
     iva: IVA_RATE
   }
 }
@@ -75,6 +77,16 @@ export async function getActiveFees(): Promise<ActiveFees> {
           break
         case 'viaticos':
           if (record.fixed_rate !== null) fees.viaticos = record.fixed_rate
+          break
+        case 'reparticion_utilidades':
+          if (record.ranges && record.ranges.length > 0) {
+            fees.reparticionUtilidades = record.ranges.map(r => ({
+              min: r.min,
+              max: r.max >= 999999999999 ? Infinity : r.max,
+              fee: r.fee,
+              label: r.label
+            }))
+          }
           break
         case 'iva':
           if (record.fixed_rate !== null) fees.iva = record.fixed_rate

@@ -216,7 +216,8 @@ export interface FinancialSummary {
   totalBonosAlimentacion: number
   totalBonosDotacion: number
   totalBonosViaticos: number
-  totalBonosTotal: number // Incluye: mera liberalidad + alimentación + dotación + viáticos
+  totalBonosReparticionUtilidades: number
+  totalBonosTotal: number // Incluye: mera liberalidad + alimentación + dotación + viáticos + repartición utilidades
   totalCompensacion: number
 
   // Distribución
@@ -257,6 +258,10 @@ export interface TikinCommission {
   // Viáticos
   montoBaseViaticos: number
   feeBaseViaticos: number
+
+  // Repartición de Utilidades (mismo fee que ML, por rangos)
+  montoBaseReparticionUtilidades: number
+  feeBaseReparticionUtilidades: number
 
   // Totales
   feeTotal: number
@@ -478,12 +483,33 @@ export interface IntegralFinancialSummary {
   ahorroTotalAnual: number
   ahorroPorcentaje: number
 
-  // Comisión Tikin (% del ahorro)
-  comisionTikin: IntegralTikinCommission
+  // Comisión Tikin (fee por rangos sobre montos de bonos)
+  comisionTikin: TikinCommission
 
   // Beneficio neto (ahorro - comisión)
   beneficioNetoMensual: number
   beneficioNetoAnual: number
+
+  // Desglose de bonos por tipo (para BonusBreakdownCard)
+  desglosePorTipo?: BonusTotals[]
+  totalBonos?: number
+
+  // Cumplimiento Ley 1393/2010 Art. 30 — tope del 40%
+  cumplimiento40?: {
+    factorPrestacional: number         // 30% del SI
+    bonosCapados: number               // ML + Alimentación total
+    bonosCapadosPorEmpleado: number    // ML + Alimentación por empleado
+    bonosExentos: number               // Repartición + Viáticos + Dotación total
+    bonosExentosPorEmpleado: number
+    totalNoSalarial: number            // FP + B_cap (por empleado)
+    totalDevengado: number             // SI + B_cap + R (por empleado)
+    porcentajeNoSalarial: number       // debe ser ≤ 40%
+    limiteBonosCapPorEmpleado: number
+    limiteBonosCapTotal: number
+    holgura: number
+    cumple: boolean
+    exceso: number
+  }
 
   // Detalle por empleado
   resultadosPorEmpleado: IntegralEmployeeResult[]

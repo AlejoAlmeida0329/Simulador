@@ -111,12 +111,12 @@ export function IntegralDataInputStep() {
       </div>
 
       {/* Info banner */}
-      <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
         <div className="flex gap-3">
-          <svg className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <div className="text-sm text-purple-800">
+          <div className="text-sm text-indigo-800">
             <p className="font-medium mb-1">Requisito de elegibilidad</p>
             <p>
               Solo empleados con salario actual igual o superior a{' '}
@@ -219,7 +219,7 @@ export function IntegralDataInputStep() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nivel de Riesgo ARL del lote
               </label>
-              <ARLRiskSelector value={loteArl} onChange={setLoteArl} compact accentColor="purple" />
+              <ARLRiskSelector value={loteArl} onChange={setLoteArl} compact />
             </div>
 
             <button
@@ -309,7 +309,7 @@ export function IntegralDataInputStep() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nivel de Riesgo ARL
               </label>
-              <ARLRiskSelector value={empArl} onChange={setEmpArl} compact accentColor="purple" />
+              <ARLRiskSelector value={empArl} onChange={setEmpArl} compact />
             </div>
 
             <button

@@ -241,12 +241,12 @@ export function CompanyDataStep() {
           </div>
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Regimen de Contribucion Parafiscal</h3>
-            <p className="text-sm text-gray-500">Art. 114-1 del Estatuto Tributario</p>
+            <p className="text-sm text-gray-500">Art. 114-1 del Estatuto Tributario &mdash; Selecciona el tipo de empleador</p>
           </div>
         </div>
 
         <div className="space-y-3">
-          {/* Exonerado */}
+          {/* 1. Persona Jurídica Contribuyente de Renta */}
           <label
             className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
               regimen === 'exonerado'
@@ -263,17 +263,34 @@ export function CompanyDataStep() {
               className="mt-1 w-4 h-4 text-emerald-600 focus:ring-emerald-500"
             />
             <div>
-              <span className="font-medium text-gray-900">Exonerado (Art. 114-1 E.T.)</span>
-              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
-                Recomendado
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-gray-900">Persona Juridica Contribuyente de Renta</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
+                  Mas comun
+                </span>
+              </div>
               <p className="text-sm text-gray-600 mt-1">
-                Empresas declarantes de renta (SAS, LTDA, S.A.): exoneradas de Salud (8.5%), SENA (2%) e ICBF (3%) para empleados con IBC menor a 10 SMMLV ($17.509.050).
+                Empresas SAS, S.A., LTDA declarantes de renta. Exoneradas de Salud (8.5%), SENA (2%) e ICBF (3%) para empleados con IBC &lt; 10 SMMLV ($17.509.050).
               </p>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-emerald-50 rounded px-2 py-1.5 text-center border border-emerald-100">
+                  <span className="text-emerald-700 font-medium">SENA 2%</span>
+                  <span className="block text-emerald-500 text-[10px]">Exonerado*</span>
+                </div>
+                <div className="bg-emerald-50 rounded px-2 py-1.5 text-center border border-emerald-100">
+                  <span className="text-emerald-700 font-medium">ICBF 3%</span>
+                  <span className="block text-emerald-500 text-[10px]">Exonerado*</span>
+                </div>
+                <div className="bg-gray-50 rounded px-2 py-1.5 text-center border border-gray-200">
+                  <span className="text-gray-700 font-medium">Caja 4%</span>
+                  <span className="block text-gray-400 text-[10px]">Siempre</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">*Solo para IBC &lt; 10 SMMLV. Si IBC &ge; 10 SMMLV, paga 9% completo.</p>
             </div>
           </label>
 
-          {/* General */}
+          {/* 2. Regimen General */}
           <label
             className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
               regimen === 'general'
@@ -290,12 +307,53 @@ export function CompanyDataStep() {
               className="mt-1 w-4 h-4 text-blue-600 focus:ring-blue-500"
             />
             <div>
-              <span className="font-medium text-gray-900">Regimen General</span>
+              <span className="font-medium text-gray-900">Regimen General &mdash; Sin exoneracion</span>
               <p className="text-sm text-gray-600 mt-1">
-                Entidades sin animo de lucro, cooperativas, personas naturales con empleados, y empresas no declarantes de renta: pagan todos los aportes parafiscales.
+                Aplica para:
               </p>
+              <ul className="text-sm text-gray-600 mt-1 space-y-0.5 ml-4 list-disc">
+                <li>ESAL <span className="text-gray-400">(entidades sin animo de lucro)</span> NO contribuyentes de renta</li>
+                <li>Personas naturales empleadoras con 1 solo trabajador</li>
+                <li>Personas naturales no declarantes de renta</li>
+                <li>Cooperativas y regimenes especiales</li>
+              </ul>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-blue-50 rounded px-2 py-1.5 text-center border border-blue-100">
+                  <span className="text-blue-700 font-medium">SENA 2%</span>
+                  <span className="block text-blue-400 text-[10px]">Obligatorio</span>
+                </div>
+                <div className="bg-blue-50 rounded px-2 py-1.5 text-center border border-blue-100">
+                  <span className="text-blue-700 font-medium">ICBF 3%</span>
+                  <span className="block text-blue-400 text-[10px]">Obligatorio</span>
+                </div>
+                <div className="bg-blue-50 rounded px-2 py-1.5 text-center border border-blue-100">
+                  <span className="text-blue-700 font-medium">Caja 4%</span>
+                  <span className="block text-blue-400 text-[10px]">Obligatorio</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">Paga todos los aportes parafiscales: SENA + ICBF + Caja = 9%</p>
             </div>
           </label>
+        </div>
+
+        {/* Nota informativa sobre casos especiales */}
+        <div className="mt-4 bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+          <div className="flex gap-2">
+            <svg className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-xs text-gray-500 space-y-1">
+              <p>
+                <span className="font-medium text-gray-600">Personas naturales con 2+ empleados</span> declarantes de renta: pueden aplicar la exoneracion (selecciona la primera opcion).
+              </p>
+              <p>
+                <span className="font-medium text-gray-600">ESAL contribuyentes de renta:</span> tambien pueden aplicar la exoneracion (selecciona la primera opcion).
+              </p>
+              <p>
+                <span className="font-medium text-gray-600">Salario integral:</span> la exoneracion no aplica (Art. 114-1 E.T.), ya que el salario integral minimo (13 SMMLV) siempre excede el umbral de 10 SMMLV. El simulador lo aplica automaticamente.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

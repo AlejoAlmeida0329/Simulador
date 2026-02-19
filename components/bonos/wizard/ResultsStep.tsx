@@ -5,8 +5,9 @@ import { useBonosStore } from '@/store/bonosStore'
 import { generateQuotationPDF } from '@/lib/pdf/generate-quotation'
 import { saveCotizacion } from '@/lib/supabase/quotations'
 import { notify } from '@/lib/utils/notifications'
-import type { TikinCommission, SavingsEstimate, FinancialSummary } from '@/lib/bonos/types'
+import type { TikinCommission, SavingsEstimate, FinancialSummary, BonusTotals } from '@/lib/bonos/types'
 import type { ParafiscalesBreakdown } from '@/types/calculations'
+import { BONUS_TYPES_METADATA, BonusCategory } from '@/lib/bonos/constants'
 
 const formatCOP = (value: number) =>
   new Intl.NumberFormat('es-CO', {
@@ -213,6 +214,9 @@ export function ResultsStep() {
           <>
             {resumenFinanciero && (
               <SalaryStructureCard resumenFinanciero={resumenFinanciero} />
+            )}
+            {resumenFinanciero && comisionesTikin && (
+              <BonusBreakdownCard resumen={resumenFinanciero} comisiones={comisionesTikin} />
             )}
             <ComparisonTable
               trad={trad}
@@ -715,39 +719,8 @@ function ComparisonTable({
   )
 }
 
-function DetailRow({
-  label,
-  trad,
-  tikinVal,
-  exonerado
-}: {
-  label: string
-  trad: number
-  tikinVal: number
-  exonerado?: boolean
-}) {
-  const ahorro = trad - tikinVal
-  return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-      <td className="py-2.5 pl-10 pr-4 text-gray-600">
-        {label}
-        {exonerado && trad === 0 && (
-          <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700">
-            Exonerado
-          </span>
-        )}
-      </td>
-      <td className="py-2.5 px-4 text-right text-gray-700 tabular-nums">{formatCOP(trad)}</td>
-      <td className="py-2.5 px-4 text-right text-gray-700 tabular-nums">{formatCOP(tikinVal)}</td>
-      <td className={`py-2.5 px-4 text-right tabular-nums ${ahorro > 0 ? 'text-emerald-600 font-medium' : 'text-gray-400'}`}>
-        {formatCOP(ahorro)}
-      </td>
-    </tr>
-  )
-}
-
 // ============================================
-// Nuevos Beneficios View — "Costo bono vs Aumento salarial"
+// Nuevos Beneficios View — Redesigned with card/accordion UX
 // ============================================
 
 function NuevosBeneficiosView({
@@ -765,186 +738,476 @@ function NuevosBeneficiosView({
   comisiones: TikinCommission
   regimen: string
 }) {
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({})
+  const toggleSection = (key: string) => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }))
+  }
+
   const totalBonos = resumen.totalBonosTotal
+  const salarioActual = resumen.totalSalarios
+  const totalComp = resumen.totalCompensacion
+  const pctSalario = resumen.porcentajeSalarios
+  const pctBonos = resumen.porcentajeBonos
   const isExonerado = regimen === 'exonerado'
 
-  // Costo del bono no salarial: monto + comisión Tikin
-  const costoBono = totalBonos + comisiones.totalConIva
+  const pctSaving = (a: number, b: number) => a > 0 ? Math.round(((a - b) / a) * 100) : 0
 
-  // Costo si se diera como aumento salarial: monto + aportes patronales sobre ese monto
-  // grandTotal tradicional calcula sobre 100% salario. grandTotal tikin calcula sobre salario reducido.
-  // La diferencia = aportes evitados (SS + parafiscales + prestaciones)
-  const aportesPatronalesSobreBonos = ahorros.costoTradicionalMensual - ahorros.costoConTikinMensual
-  const costoAumentoSalarial = totalBonos + aportesPatronalesSobreBonos
+  // Accordion categories
+  const categories = [
+    {
+      key: 'ss',
+      title: 'Seguridad Social',
+      accentColor: 'blue' as const,
+      tradTotal: trad.subtotalSeguridadSocial,
+      tikinTotal: tikin.subtotalSeguridadSocial,
+      items: [
+        { label: 'Salud (8.5%)', aumento: trad.health, bono: tikin.health, exonerado: isExonerado },
+        { label: 'Pension (12%)', aumento: trad.pension, bono: tikin.pension },
+        { label: 'ARL', aumento: trad.arl, bono: tikin.arl },
+      ]
+    },
+    {
+      key: 'paraf',
+      title: 'Aportes Parafiscales',
+      accentColor: 'amber' as const,
+      tradTotal: trad.subtotalParafiscales,
+      tikinTotal: tikin.subtotalParafiscales,
+      items: [
+        { label: 'SENA (2%)', aumento: trad.sena, bono: tikin.sena, exonerado: isExonerado },
+        { label: 'ICBF (3%)', aumento: trad.icbf, bono: tikin.icbf, exonerado: isExonerado },
+        { label: 'Caja Comp. (4%)', aumento: trad.caja, bono: tikin.caja },
+      ]
+    },
+    {
+      key: 'prest',
+      title: 'Prestaciones Sociales',
+      accentColor: 'purple' as const,
+      tradTotal: trad.subtotalPrestaciones,
+      tikinTotal: tikin.subtotalPrestaciones,
+      items: [
+        { label: 'Prima (8.33%)', aumento: trad.prima, bono: tikin.prima },
+        { label: 'Cesantias (8.33%)', aumento: trad.cesantias, bono: tikin.cesantias },
+        { label: 'Int. Cesantias (1%)', aumento: trad.interesesCesantias, bono: tikin.interesesCesantias },
+        { label: 'Vacaciones (4.17%)', aumento: trad.vacaciones, bono: tikin.vacaciones },
+      ]
+    }
+  ]
 
-  // Ahorro empresa: diferencia
-  const ahorroEmpresa = costoAumentoSalarial - costoBono
-
-  // Employee SS deductions: 8% (4% salud + 4% pensión)
-  const EMPLEADO_SS_RATE = 0.08
-  const descuentoEmpleado = totalBonos * EMPLEADO_SS_RATE
-  const netoEmpleadoBono = totalBonos // Bonos no salariales no tienen descuento
-  const netoEmpleadoAumento = totalBonos - descuentoEmpleado // Aumento tiene descuento SS
+  const colorStyles = {
+    blue: { borderL: 'border-l-blue-500', dot: 'bg-blue-500' },
+    amber: { borderL: 'border-l-amber-500', dot: 'bg-amber-500' },
+    purple: { borderL: 'border-l-purple-500', dot: 'bg-purple-500' }
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Main comparison card */}
+    <div className="space-y-4">
+      {/* ── 1. Compensation Overview Card ── */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Comparacion: Bono No Salarial vs Aumento de Salario</h3>
-          <p className="text-sm text-gray-500 mt-1">
-            Que pasa si la empresa entrega {formatCOP(totalBonos)} como beneficio no salarial vs como aumento directo de salario
-          </p>
-          {isExonerado && (
-            <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md">
-              <svg className="w-3.5 h-3.5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <h3 className="text-lg font-semibold text-gray-900">Nueva Estructura de Compensacion</h3>
+          <p className="text-sm text-gray-500 mt-1">Tu empleado mantiene su salario actual y recibe bonos adicionales como beneficio no salarial</p>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Total compensation */}
+          <div className="text-center">
+            <p className="text-sm text-gray-500 mb-1">Compensacion Total Mensual</p>
+            <p className="text-3xl font-bold text-gray-900">{formatCOP(totalComp)}</p>
+          </div>
+
+          {/* Stacked bar */}
+          <div className="w-full h-8 rounded-full overflow-hidden flex bg-gray-100">
+            <div
+              className="h-full bg-indigo-500 transition-all duration-500 flex items-center justify-center"
+              style={{ width: `${pctSalario}%` }}
+            >
+              {pctSalario >= 15 && (
+                <span className="text-xs font-semibold text-white">{pctSalario.toFixed(0)}%</span>
+              )}
+            </div>
+            <div
+              className="h-full bg-emerald-500 transition-all duration-500 flex items-center justify-center"
+              style={{ width: `${pctBonos}%` }}
+            >
+              {pctBonos >= 10 && (
+                <span className="text-xs font-semibold text-white">{pctBonos.toFixed(0)}%</span>
+              )}
+            </div>
+          </div>
+
+          {/* Two metric cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-indigo-500" />
+                <h4 className="text-sm font-semibold text-indigo-900">Salario Actual ({pctSalario.toFixed(0)}%)</h4>
+              </div>
+              <p className="text-2xl font-bold text-indigo-700 mb-2">{formatCOP(salarioActual)}</p>
+              <p className="text-xs text-indigo-600/80 leading-relaxed">
+                Se mantiene intacto &mdash; es la base de cotizacion (IBC) para seguridad social, parafiscales y prestaciones
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                <h4 className="text-sm font-semibold text-emerald-900">Nuevos Bonos ({pctBonos.toFixed(0)}%)</h4>
+              </div>
+              <p className="text-2xl font-bold text-emerald-700 mb-2">{formatCOP(totalBonos)}</p>
+              <p className="text-xs text-emerald-600/80 leading-relaxed">
+                Beneficio adicional no salarial &mdash; Art. 128 CST. No genera aportes ni prestaciones
+              </p>
+            </div>
+          </div>
+
+          {/* Explanation */}
+          <div className="bg-gray-50 rounded-lg px-4 py-3 border border-gray-200">
+            <div className="flex gap-2">
+              <svg className="w-5 h-5 text-indigo-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="text-xs font-medium text-emerald-700">Regimen Exonerado (Art. 114-1 E.T.)</span>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-gray-200">
-          {/* Option A: Bono no salarial */}
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
+              <div>
+                <p className="text-sm text-gray-700">
+                  <span className="font-medium">Propuesta:</span> ademas del salario actual de <span className="font-semibold text-indigo-700">{formatCOP(salarioActual)}</span>, el empleado recibe <span className="font-semibold text-emerald-700">{formatCOP(totalBonos)}</span> en bonos no salariales.
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-medium">Ventaja:</span> el bono no genera cargas laborales adicionales (seguridad social, parafiscales ni prestaciones), lo que lo hace mas eficiente que un aumento salarial directo por el mismo monto.
+                </p>
+                <p className="text-xs text-gray-500 mt-2">
+                  <span className="font-medium">Fundamento legal:</span> Art. 128 CST (pagos no constitutivos de salario), Ley 1393/2010 Art. 30 (limite del 40%), Art. 127 CST (definicion de salario).
+                </p>
               </div>
-              <h4 className="font-semibold text-gray-900">Como Bono No Salarial</h4>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Monto del bono</span>
-                <span className="text-sm font-medium text-gray-900">{formatCOP(totalBonos)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Comision Tikin (con IVA)</span>
-                <span className="text-sm text-gray-700">{formatCOP(comisiones.totalConIva)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Aportes y prestaciones sobre bono</span>
-                <span className="text-sm text-emerald-600 font-medium">$0</span>
-              </div>
-              <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                <span className="text-sm font-bold text-gray-900">Costo total empresa</span>
-                <span className="text-base font-bold text-gray-900">{formatCOP(costoBono)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-sm text-gray-600">Empleado recibe neto</span>
-                <span className="text-sm font-semibold text-emerald-600">{formatCOP(netoEmpleadoBono)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Option B: Aumento salarial */}
-          <div className="p-6 bg-gray-50">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </div>
-              <h4 className="font-semibold text-gray-900">Como Aumento de Salario</h4>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Monto del aumento</span>
-                <span className="text-sm font-medium text-gray-900">{formatCOP(totalBonos)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Comision Tikin</span>
-                <span className="text-sm text-gray-700">$0</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Aportes y prestaciones adicionales</span>
-                <span className="text-sm text-red-600 font-medium">{formatCOP(aportesPatronalesSobreBonos)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-3 border-t border-gray-200">
-                <span className="text-sm font-bold text-gray-900">Costo total empresa</span>
-                <span className="text-base font-bold text-gray-900">{formatCOP(costoAumentoSalarial)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-sm text-gray-600">Empleado recibe neto</span>
-                <span className="text-sm font-medium text-gray-700">{formatCOP(netoEmpleadoAumento)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom summary */}
-        <div className="px-6 py-4 bg-emerald-50 border-t border-emerald-200">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="text-center sm:text-left">
-              <p className="text-xs text-emerald-700 uppercase font-semibold tracking-wide">Ahorro empresa (mensual)</p>
-              <p className="text-2xl font-bold text-emerald-700">{formatCOP(ahorroEmpresa)}</p>
-              <p className="text-xs text-emerald-600">{formatCOP(ahorroEmpresa * 12)} al ano</p>
-            </div>
-            <div className="text-center sm:text-right">
-              <p className="text-xs text-emerald-700 uppercase font-semibold tracking-wide">Beneficio extra empleado</p>
-              <p className="text-2xl font-bold text-emerald-700">{formatCOP(netoEmpleadoBono - netoEmpleadoAumento)}</p>
-              <p className="text-xs text-emerald-600">mas ingreso neto vs aumento salarial</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Detailed cost breakdown of the salary raise */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Desglose: Aportes Patronales del Aumento Salarial Equivalente</h3>
-          <p className="text-sm text-gray-500 mt-1">Lo que costaria dar {formatCOP(totalBonos)} como aumento de salario</p>
+      {/* ── 2. Bonus Breakdown ── */}
+      <BonusBreakdownCard resumen={resumen} comisiones={comisiones} />
+
+      {/* ── 3. Accordion Breakdown (same pattern as ComparisonTable) ── */}
+      <div className="space-y-4">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 px-6 py-5">
+          <h3 className="text-lg font-semibold text-gray-900">Desglose de Cargas Laborales</h3>
+          <p className="text-sm text-gray-500 mt-1">Comparativo mensual: aumento salarial de {formatCOP(totalBonos)} vs bono no salarial por el mismo monto</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+              Art. 128 CST &mdash; Pagos no constitutivos de salario
+            </span>
+            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+              Ley 1393/2010, Art. 30 &mdash; Limite 40% no salarial
+            </span>
+            {isExonerado && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Art. 114-1 E.T. &mdash; Exoneracion de aportes (Ley 1607/2012)
+              </span>
+            )}
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 bg-gray-50">
-                <th className="text-left py-3 px-6 text-gray-600 font-semibold">Concepto</th>
-                <th className="text-right py-3 px-4 text-gray-600 font-semibold">Con Aumento</th>
-                <th className="text-right py-3 px-4 text-gray-600 font-semibold">Con Bono</th>
-                <th className="text-right py-3 px-4 text-gray-600 font-semibold">Diferencia</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-gray-50">
-                <td colSpan={4} className="py-2.5 px-6 font-semibold text-gray-800 text-xs uppercase tracking-wide">
-                  Seguridad Social
-                </td>
-              </tr>
-              <DetailRow label="Salud (8.5%)" trad={trad.health} tikinVal={tikin.health} exonerado={isExonerado} />
-              <DetailRow label="Pension (12%)" trad={trad.pension} tikinVal={tikin.pension} />
-              <DetailRow label="ARL" trad={trad.arl} tikinVal={tikin.arl} />
 
-              <tr className="bg-gray-50">
-                <td colSpan={4} className="py-2.5 px-6 font-semibold text-gray-800 text-xs uppercase tracking-wide">
-                  Parafiscales
-                </td>
-              </tr>
-              <DetailRow label="SENA (2%)" trad={trad.sena} tikinVal={tikin.sena} exonerado={isExonerado} />
-              <DetailRow label="ICBF (3%)" trad={trad.icbf} tikinVal={tikin.icbf} exonerado={isExonerado} />
-              <DetailRow label="Caja Comp. (4%)" trad={trad.caja} tikinVal={tikin.caja} />
+        {/* Category cards */}
+        {categories.map(cat => {
+          const saving = cat.tradTotal - cat.tikinTotal
+          const pct = pctSaving(cat.tradTotal, cat.tikinTotal)
+          const isOpen = openSections[cat.key]
+          const styles = colorStyles[cat.accentColor]
 
-              <tr className="bg-gray-50">
-                <td colSpan={4} className="py-2.5 px-6 font-semibold text-gray-800 text-xs uppercase tracking-wide">
-                  Prestaciones Sociales
-                </td>
-              </tr>
-              <DetailRow label="Prima (8.33%)" trad={trad.prima} tikinVal={tikin.prima} />
-              <DetailRow label="Cesantias (8.33%)" trad={trad.cesantias} tikinVal={tikin.cesantias} />
-              <DetailRow label="Int. Cesantias (1%)" trad={trad.interesesCesantias} tikinVal={tikin.interesesCesantias} />
-              <DetailRow label="Vacaciones (4.17%)" trad={trad.vacaciones} tikinVal={tikin.vacaciones} />
+          return (
+            <div key={cat.key} className={`bg-white rounded-xl shadow-sm border border-gray-200 ${styles.borderL} border-l-4 overflow-hidden`}>
+              <button
+                type="button"
+                onClick={() => toggleSection(cat.key)}
+                className="w-full px-5 py-4 flex items-center justify-between gap-3 hover:bg-gray-50/50 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-2.5 h-2.5 rounded-full ${styles.dot} flex-shrink-0`} />
+                  <span className="font-semibold text-gray-900 text-sm">{cat.title}</span>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="hidden sm:flex items-center gap-2 text-sm">
+                    <span className="text-gray-400 tabular-nums">{formatCOP(cat.tradTotal)}</span>
+                    <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                    <span className="font-medium text-gray-900 tabular-nums">{formatCOP(cat.tikinTotal)}</span>
+                  </div>
+                  {saving > 0 && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                      {pct}%
+                    </span>
+                  )}
+                  <svg className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </button>
 
-              <tr className="border-t-2 border-gray-300 bg-gray-50">
-                <td className="py-3 px-6 font-bold text-gray-900">Total Aportes Patronales</td>
-                <td className="py-3 px-4 text-right font-bold text-gray-900">{formatCOP(ahorros.costoTradicionalMensual)}</td>
-                <td className="py-3 px-4 text-right font-bold text-gray-900">{formatCOP(ahorros.costoConTikinMensual)}</td>
-                <td className="py-3 px-4 text-right font-bold text-emerald-600">{formatCOP(aportesPatronalesSobreBonos)}</td>
-              </tr>
-            </tbody>
-          </table>
+              {isOpen && (
+                <div className="border-t border-gray-100 divide-y divide-gray-50">
+                  {cat.items.map(item => {
+                    const itemSaving = item.aumento - item.bono
+                    return (
+                      <div key={item.label} className="px-5 py-3 hover:bg-gray-50/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700">
+                            {item.label}
+                            {'exonerado' in item && item.exonerado && item.aumento === 0 && (
+                              <span className="ml-1.5 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700">
+                                Exonerado
+                              </span>
+                            )}
+                          </span>
+                          {itemSaving > 0 && (
+                            <span className="text-xs font-semibold text-emerald-600">&minus;{formatCOP(itemSaving)}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-1.5">
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <div className="w-2 h-2 rounded-full bg-red-300 flex-shrink-0" />
+                            <span className="text-gray-500 tabular-nums">{formatCOP(item.aumento)}</span>
+                          </div>
+                          <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
+                            <span className="font-medium text-gray-700 tabular-nums">{formatCOP(item.bono)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Grand Total Card */}
+        <div className="bg-white rounded-xl shadow-sm border-2 border-emerald-200 overflow-hidden">
+          <div className="p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="text-center sm:text-left">
+                <div className="flex items-center gap-1.5 justify-center sm:justify-start mb-1">
+                  <div className="w-2 h-2 rounded-full bg-red-400" />
+                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Con Aumento</span>
+                </div>
+                <p className="text-xl font-bold text-gray-900">{formatCOP(ahorros.costoTradicionalMensual)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{formatCOP(ahorros.costoTradicionalMensual * 12)} / ano</p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center gap-1.5 justify-center mb-1">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Con Bono</span>
+                </div>
+                <p className="text-xl font-bold text-gray-900">{formatCOP(ahorros.costoConTikinMensual)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{formatCOP(ahorros.costoConTikinMensual * 12)} / ano</p>
+              </div>
+              <div className="text-center sm:text-right">
+                <p className="text-xs text-emerald-600 uppercase tracking-wide font-semibold mb-1">Ahorro en Cargas</p>
+                <p className="text-2xl font-bold text-emerald-700">{formatCOP(ahorros.costoTradicionalMensual - ahorros.costoConTikinMensual)}</p>
+                <div className="flex items-center justify-center sm:justify-end gap-2 mt-0.5">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                    &minus;{pctSaving(ahorros.costoTradicionalMensual, ahorros.costoConTikinMensual)}%
+                  </span>
+                  <span className="text-xs text-emerald-500">{formatCOP((ahorros.costoTradicionalMensual - ahorros.costoConTikinMensual) * 12)} / ano</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// Bonus Breakdown Card (desglose por bono + tarifa)
+// ============================================
+
+function BonusBreakdownCard({
+  resumen,
+  comisiones
+}: {
+  resumen: FinancialSummary
+  comisiones: TikinCommission
+}) {
+  // Build per-category fee info: monto, fee%, fee amount
+  const categoryFees: Array<{
+    label: string
+    monto: number
+    feePct: number
+    feeAmount: number
+    color: string
+  }> = []
+
+  if (comisiones.montoBaseMeraLiberalidad > 0) {
+    categoryFees.push({
+      label: 'Mera Liberalidad',
+      monto: comisiones.montoBaseMeraLiberalidad,
+      feePct: comisiones.porcentajeFee * 100,
+      feeAmount: comisiones.feeBaseMeraLiberalidad,
+      color: 'blue'
+    })
+  }
+  if (comisiones.montoBaseAlimentacion > 0) {
+    const pct = comisiones.montoBaseAlimentacion > 0
+      ? (comisiones.feeBaseAlimentacion / comisiones.montoBaseAlimentacion) * 100
+      : 0
+    categoryFees.push({
+      label: 'Alimentacion',
+      monto: comisiones.montoBaseAlimentacion,
+      feePct: pct,
+      feeAmount: comisiones.feeBaseAlimentacion,
+      color: 'yellow'
+    })
+  }
+  if (comisiones.montoBaseViaticos > 0) {
+    const pct = comisiones.montoBaseViaticos > 0
+      ? (comisiones.feeBaseViaticos / comisiones.montoBaseViaticos) * 100
+      : 0
+    categoryFees.push({
+      label: 'Viaticos',
+      monto: comisiones.montoBaseViaticos,
+      feePct: pct,
+      feeAmount: comisiones.feeBaseViaticos,
+      color: 'indigo'
+    })
+  }
+  if (comisiones.montoBaseReparticionUtilidades > 0) {
+    const pct = comisiones.montoBaseReparticionUtilidades > 0
+      ? (comisiones.feeBaseReparticionUtilidades / comisiones.montoBaseReparticionUtilidades) * 100
+      : 0
+    categoryFees.push({
+      label: 'Reparticion de Utilidades',
+      monto: comisiones.montoBaseReparticionUtilidades,
+      feePct: pct,
+      feeAmount: comisiones.feeBaseReparticionUtilidades,
+      color: 'emerald'
+    })
+  }
+  if (comisiones.montoDotacion > 0) {
+    categoryFees.push({
+      label: 'Dotacion',
+      monto: comisiones.montoDotacion,
+      feePct: 0,
+      feeAmount: 0,
+      color: 'gray'
+    })
+  }
+
+  // Per-type breakdown from resumen
+  const tipoBreakdown = resumen.desglosePorTipo.filter(d => d.montoTotal > 0)
+
+  const totalMonto = categoryFees.reduce((s, c) => s + c.monto, 0)
+  const totalFee = categoryFees.reduce((s, c) => s + c.feeAmount, 0)
+
+  const colorMap: Record<string, { bg: string; text: string; border: string; dot: string }> = {
+    blue: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+    yellow: { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200', dot: 'bg-yellow-500' },
+    indigo: { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' },
+    emerald: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+    gray: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200', dot: 'bg-gray-400' }
+  }
+
+  if (categoryFees.length === 0) return null
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900">Desglose de Bonos y Tarifas</h3>
+        <p className="text-sm text-gray-500 mt-1">Monto asignado por categoria de bono y la tarifa Tikin que aplica</p>
+      </div>
+
+      <div className="p-6">
+        {/* Per-type detail (individual bonuses) */}
+        {tipoBreakdown.length > 0 && (
+          <div className="mb-5">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Detalle por tipo de bono</p>
+            <div className="space-y-2">
+              {tipoBreakdown.map(item => {
+                const meta = BONUS_TYPES_METADATA[item.tipoBono]
+                if (!meta) return null
+                // Get fee % for this type based on its category
+                const catFee = categoryFees.find(c => {
+                  if (meta.categoria === BonusCategory.MERA_LIBERALIDAD) return c.label === 'Mera Liberalidad'
+                  if (meta.categoria === BonusCategory.ALIMENTACION) return c.label === 'Alimentacion'
+                  if (meta.categoria === BonusCategory.VIATICOS) return c.label === 'Viaticos'
+                  if (meta.categoria === BonusCategory.REPARTICION_UTILIDADES) return c.label === 'Reparticion de Utilidades'
+                  if (meta.categoria === BonusCategory.DOTACION) return c.label === 'Dotacion'
+                  return false
+                })
+                const feePct = catFee?.feePct ?? 0
+
+                return (
+                  <div key={item.tipoBono} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-lg flex-shrink-0">{meta.icono}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{meta.nombre}</p>
+                        <p className="text-xs text-gray-400">{item.totalEmpleados} empleado{item.totalEmpleados !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <p className="text-sm font-semibold text-gray-900 tabular-nums">{formatCOP(item.montoTotal)}</p>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold tabular-nums ${
+                        feePct === 0
+                          ? 'bg-gray-100 text-gray-500'
+                          : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {feePct === 0 ? 'Sin fee' : `${feePct.toFixed(feePct % 1 === 0 ? 0 : 2)}%`}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Category summary table */}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Resumen por categoria</p>
+          <div className="space-y-2">
+            {categoryFees.map(cat => {
+              const styles = colorMap[cat.color] || colorMap.gray
+              return (
+                <div key={cat.label} className={`flex items-center justify-between rounded-lg px-4 py-3 border ${styles.border} ${styles.bg}`}>
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-2.5 h-2.5 rounded-full ${styles.dot}`} />
+                    <span className={`text-sm font-medium ${styles.text}`}>{cat.label}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <span className="text-sm font-semibold text-gray-900 tabular-nums">{formatCOP(cat.monto)}</span>
+                    <div className="text-right min-w-[80px]">
+                      <span className="text-xs text-gray-500">
+                        {cat.feePct === 0 ? 'Sin fee' : `Fee ${cat.feePct.toFixed(cat.feePct % 1 === 0 ? 0 : 2)}%`}
+                      </span>
+                      {cat.feeAmount > 0 && (
+                        <p className="text-xs font-medium text-gray-700 tabular-nums">{formatCOP(cat.feeAmount)}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Totals row */}
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-200 px-4">
+            <span className="text-sm font-bold text-gray-900">Total Bonos</span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-bold text-gray-900 tabular-nums">{formatCOP(totalMonto)}</span>
+              <div className="text-right min-w-[80px]">
+                <span className="text-xs text-gray-500">Fee total</span>
+                <p className="text-xs font-bold text-gray-900 tabular-nums">{formatCOP(totalFee)}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -971,7 +1234,7 @@ function CommissionSummary({
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">Comision &amp; Beneficio Neto</h3>
-        <p className="text-sm text-gray-500 mt-1">Del ahorro en aportes patronales se descuenta la comision Tikin</p>
+        <p className="text-sm text-gray-500 mt-1">Del ahorro en cargas laborales se descuenta la comision Tikin</p>
       </div>
 
       <div className="p-6">
@@ -1052,7 +1315,7 @@ function CommissionSummary({
               </svg>
             </div>
             <p className="text-sm text-emerald-800">
-              <span className="font-bold">ROI {roi}x</span> &mdash; Por cada $1 de comision, tu empresa ahorra ${roi} en aportes patronales
+              <span className="font-bold">ROI {roi}x</span> &mdash; Por cada $1 de comision, tu empresa ahorra ${roi} en cargas laborales
             </p>
           </div>
         )}

@@ -36,9 +36,11 @@ export function calculateTikinCommissionBonos2(
   montoAlimentacion: number,
   montoDotacion: number,
   montoViaticos: number = 0,
-  fees?: ActiveFees
+  fees?: ActiveFees,
+  montoReparticionUtilidades: number = 0
 ): TikinCommission {
   const mlRanges = fees?.meraLiberalidadRanges || FEE_MERA_LIBERALIDAD_RANGES
+  const ruRanges = fees?.reparticionUtilidades || FEE_MERA_LIBERALIDAD_RANGES
   const feeAlimentacion = fees?.alimentacion ?? FEE_ALIMENTACION
   const feeViaticos = fees?.viaticos ?? FEE_VIATICOS
   const ivaRate = fees?.iva ?? IVA_RATE
@@ -57,8 +59,15 @@ export function calculateTikinCommissionBonos2(
   // Fee para viáticos
   const feeBaseViaticos = montoViaticos * feeViaticos
 
+  // Fee variable para repartición de utilidades (mismos rangos que ML)
+  const rangoRU = ruRanges.find(
+    range => montoReparticionUtilidades >= range.min && montoReparticionUtilidades <= range.max
+  )
+  const porcentajeFeeRU = rangoRU?.fee || 0.018
+  const feeBaseReparticionUtilidades = montoReparticionUtilidades * porcentajeFeeRU
+
   // Total de fees (dotación no tiene fee, es obligatoria)
-  const feeTotal = feeBaseMeraLiberalidad + feeBaseAlimentacion + feeBaseViaticos
+  const feeTotal = feeBaseMeraLiberalidad + feeBaseAlimentacion + feeBaseViaticos + feeBaseReparticionUtilidades
 
   // IVA sobre los fees
   const iva = feeTotal * ivaRate
@@ -75,6 +84,8 @@ export function calculateTikinCommissionBonos2(
     montoDotacion,
     montoBaseViaticos: montoViaticos,
     feeBaseViaticos,
+    montoBaseReparticionUtilidades: montoReparticionUtilidades,
+    feeBaseReparticionUtilidades,
     feeTotal,
     iva,
     totalConIva

@@ -14,7 +14,6 @@ interface ARLRiskSelectorProps {
   value: ARLRiskLevel
   onChange: (level: ARLRiskLevel) => void
   compact?: boolean
-  accentColor?: 'red' | 'purple'
 }
 
 /**
@@ -22,10 +21,8 @@ interface ARLRiskSelectorProps {
  * Se usa en DataInputStep e IntegralDataInputStep al configurar lotes de empleados.
  * Referencia: Decreto 1295/1994, Decreto 1607/2002 — Clasificación de actividades económicas
  */
-export function ARLRiskSelector({ value, onChange, compact = false, accentColor = 'red' }: ARLRiskSelectorProps) {
-  const colorClasses = accentColor === 'purple'
-    ? { selected: 'border-purple-500 bg-purple-50', text: 'text-purple-700', rate: 'text-purple-600' }
-    : { selected: 'border-tikin-red bg-red-50', text: 'text-tikin-red', rate: 'text-tikin-red' }
+export function ARLRiskSelector({ value, onChange, compact = false }: ARLRiskSelectorProps) {
+  const colorClasses = { selected: 'border-tikin-red bg-red-50', text: 'text-tikin-red', rate: 'text-tikin-red' }
 
   if (compact) {
     return (

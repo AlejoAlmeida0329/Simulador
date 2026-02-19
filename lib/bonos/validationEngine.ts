@@ -354,6 +354,7 @@ export class ValidationEngine {
     let totalBonosAlimentacion = 0
     let totalBonosDotacion = 0
     let totalBonosViaticos = 0
+    let totalBonosReparticionUtilidades = 0
 
     // Contadores de validaciones específicas
     let empleadosExcedenAlimentacion = 0
@@ -406,6 +407,9 @@ export class ValidationEngine {
           case BonusCategory.VIATICOS:
             totalBonosViaticos += monto
             break
+          case BonusCategory.REPARTICION_UTILIDADES:
+            totalBonosReparticionUtilidades += monto
+            break
         }
 
         // Agregar al desglose
@@ -416,7 +420,7 @@ export class ValidationEngine {
       }
     }
 
-    const totalBonosTotal = totalBonosMeraLiberalidad + totalBonosAlimentacion + totalBonosDotacion + totalBonosViaticos
+    const totalBonosTotal = totalBonosMeraLiberalidad + totalBonosAlimentacion + totalBonosDotacion + totalBonosViaticos + totalBonosReparticionUtilidades
 
     // Para beneficios_actuales (reestructuración): los bonos salen DEL salario existente.
     // totalCompensacion = salario original, IBC nuevo = salario - bonos.
@@ -473,6 +477,7 @@ export class ValidationEngine {
       totalBonosAlimentacion,
       totalBonosDotacion,
       totalBonosViaticos,
+      totalBonosReparticionUtilidades,
       totalBonosTotal,
       totalCompensacion,
       porcentajeSalarios,

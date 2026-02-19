@@ -51,7 +51,7 @@ export interface FeeConfigRecord {
   created_at: string
   updated_at: string
   updated_by: string | null
-  fee_type: 'mera_liberalidad' | 'alimentacion' | 'dotacion' | 'viaticos' | 'iva'
+  fee_type: 'mera_liberalidad' | 'alimentacion' | 'dotacion' | 'viaticos' | 'reparticion_utilidades' | 'iva'
   fixed_rate: number | null
   ranges: Array<{
     min: number

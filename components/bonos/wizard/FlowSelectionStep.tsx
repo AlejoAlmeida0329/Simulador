@@ -43,7 +43,7 @@ const FLUJOS: {
     descripcion:
       'Tu empleado sigue ganando lo mismo. Reestructuras como salario integral (minimo legal) + bonos por la diferencia. La empresa paga seguridad social y parafiscales sobre el 70% del integral, no sobre el total. Prestaciones = $0.',
     tag: 'Mismo sueldo, menos cargas',
-    tagColor: 'bg-purple-50 text-purple-700 border-purple-200',
+    tagColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     ejemplo: '$30M → $22.8M integral + $7.2M bonos = $30M total',
     refLegal: 'Art. 132 CST, Ley 100/1993 Art. 18',
   },
@@ -77,7 +77,7 @@ const COMPARACION = [
 ]
 
 export function FlowSelectionStep() {
-  const { flujoSeleccionado, setFlujoSeleccionado, siguientePaso, lotes, empleados } = useBonosStore()
+  const { flujoSeleccionado, setFlujoSeleccionado, siguientePaso, pasoAnterior, lotes, empleados } = useBonosStore()
   const [showHelp, setShowHelp] = useState(false)
   const [showChangeWarning, setShowChangeWarning] = useState(false)
   const [pendingFlujo, setPendingFlujo] = useState<FlujoTipo | null>(null)
@@ -161,7 +161,7 @@ export function FlowSelectionStep() {
                 flujo.id === 'beneficios_actuales'
                   ? 'bg-blue-50'
                   : flujo.id === 'salario_integral'
-                    ? 'bg-purple-50'
+                    ? 'bg-indigo-50'
                     : 'bg-green-50'
               }`}>
                 {flujo.id === 'beneficios_actuales' ? (
@@ -179,7 +179,7 @@ export function FlowSelectionStep() {
                       <div className="flex-[6] h-8 bg-blue-400 rounded-l-lg flex items-center justify-center">
                         <span className="text-xs font-semibold text-white">60% Base</span>
                       </div>
-                      <div className="flex-[4] h-8 bg-orange-400 rounded-r-lg flex items-center justify-center">
+                      <div className="flex-[4] h-8 bg-emerald-500 rounded-r-lg flex items-center justify-center">
                         <span className="text-xs font-semibold text-white">40% Bonos</span>
                       </div>
                     </div>
@@ -196,10 +196,10 @@ export function FlowSelectionStep() {
                       </svg>
                     </div>
                     <div className="flex gap-1 items-center">
-                      <div className="flex-[3] h-8 bg-purple-500 rounded-l-lg flex items-center justify-center">
+                      <div className="flex-[3] h-8 bg-indigo-500 rounded-l-lg flex items-center justify-center">
                         <span className="text-xs font-semibold text-white">$22.8M Integral</span>
                       </div>
-                      <div className="flex-[1] h-8 bg-orange-400 rounded-r-lg flex items-center justify-center">
+                      <div className="flex-[1] h-8 bg-emerald-500 rounded-r-lg flex items-center justify-center">
                         <span className="text-xs font-semibold text-white">$7.2M Bonos</span>
                       </div>
                     </div>
@@ -273,7 +273,7 @@ export function FlowSelectionStep() {
                       <th className="pb-2 pr-4 text-gray-500 font-medium">Aspecto</th>
                       <th className="pb-2 pr-4 text-blue-600 font-medium">Reestructurar</th>
                       <th className="pb-2 pr-4 text-green-600 font-medium">Nuevos Beneficios</th>
-                      <th className="pb-2 text-purple-600 font-medium">Integral</th>
+                      <th className="pb-2 text-indigo-600 font-medium">Integral</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -296,14 +296,23 @@ export function FlowSelectionStep() {
         )}
       </div>
 
-      {/* Continue Button */}
-      <div className="flex justify-center">
+      {/* Navigation */}
+      <div className="flex gap-4">
+        <button
+          onClick={pasoAnterior}
+          className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Volver
+        </button>
         <button
           onClick={handleContinuar}
           disabled={!flujoSeleccionado}
-          className={`flex items-center gap-2 px-8 py-3 rounded-xl font-semibold text-base transition-all duration-200 ${
+          className={`flex-1 px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
             flujoSeleccionado
-              ? 'bg-tikin-red text-white hover:bg-red-600 shadow-lg shadow-red-200'
+              ? 'bg-tikin-red text-white hover:bg-red-700'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed'
           }`}
         >
