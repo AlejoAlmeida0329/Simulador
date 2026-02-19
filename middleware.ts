@@ -50,12 +50,12 @@ export async function middleware(request: NextRequest) {
   // ==========================================
   // RUTAS PÚBLICAS (sin autenticación)
   // ==========================================
-  const publicPaths = ['/login', '/auth/callback', '/auth/callback-hash', '/auth/accept-invitation', '/logout', '/bonos']
+  const publicPaths = ['/login', '/auth/callback', '/auth/callback-hash', '/auth/accept-invitation', '/logout']
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
 
   // Si está en ruta pública y autenticado, redirigir según rol
   // EXCEPTO: logout y callback-hash (necesitan completar su proceso)
-  if (isPublicPath && user && pathname !== '/logout' && !pathname.startsWith('/auth/callback') && !pathname.startsWith('/bonos')) {
+  if (isPublicPath && user && pathname !== '/logout' && !pathname.startsWith('/auth/callback')) {
     const { data: profile } = await supabase
       .from('user_profiles')
       .select('role, approved, approval_status')
@@ -101,7 +101,7 @@ export async function middleware(request: NextRequest) {
   const isProtectedPath = isAdminPath || isComercialPath
 
   // Redirigir a login si no está autenticado (excepto rutas públicas)
-  if (isProtectedPath && !isPublicPath && !user) {
+  if (!isPublicPath && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     url.searchParams.set('redirectTo', pathname)
