@@ -50,7 +50,7 @@ export async function middleware(request: NextRequest) {
   // ==========================================
   // RUTAS PÚBLICAS (sin autenticación)
   // ==========================================
-  const publicPaths = ['/login', '/auth/callback', '/auth/callback-hash', '/auth/accept-invitation', '/logout']
+  const publicPaths = ['/login', '/auth/callback', '/auth/callback-hash', '/auth/accept-invitation', '/auth/magic-login', '/logout']
   const isPublicPath = publicPaths.some(path => pathname.startsWith(path))
 
   // Si está en ruta pública y autenticado, redirigir según rol
