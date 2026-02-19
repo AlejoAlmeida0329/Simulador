@@ -7,7 +7,9 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Tikin <noreply@tikin.is>'
+// Si no tienes dominio verificado en Resend, usa 'onboarding@resend.dev'
+// Una vez verificado tikin.is en Resend, cambia a 'Tikin <noreply@tikin.is>'
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Tikin <onboarding@resend.dev>'
 
 /**
  * Enviar invitación a comercial
@@ -85,11 +87,14 @@ export async function sendComercialInvitation(params: {
     })
 
     if (error) {
+      console.error('[Resend] Error sending email:', error)
       return { success: false, error: error.message }
     }
 
+    console.log('[Resend] Email sent successfully:', data?.id)
     return { success: true, messageId: data?.id }
   } catch (error: any) {
+    console.error('[Resend] Exception sending email:', error)
     return { success: false, error: error.message }
   }
 }
@@ -163,11 +168,14 @@ export async function sendMagicLinkEmail(params: {
     })
 
     if (error) {
+      console.error('[Resend] Error sending email:', error)
       return { success: false, error: error.message }
     }
 
+    console.log('[Resend] Email sent successfully:', data?.id)
     return { success: true, messageId: data?.id }
   } catch (error: any) {
+    console.error('[Resend] Exception sending email:', error)
     return { success: false, error: error.message }
   }
 }
