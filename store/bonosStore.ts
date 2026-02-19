@@ -82,6 +82,10 @@ interface Bonos2Store extends Bonos2WizardState {
   // Datos de empresa
   setDatosEmpresa: (datos: CompanyData) => void
 
+  // Excel data loading
+  setEmpleadosFromExcel: (empleados: EmployeeBonos2[]) => void
+  setEmpleadosIntegralFromExcel: (empleados: EmployeeIntegral[]) => void
+
   // Salario Integral (Paso 2 del flujo integral)
   addEmpleadoIntegral: (empleado: Omit<EmployeeIntegral, 'id'>) => void
   removeEmpleadoIntegral: (id: string) => void
@@ -386,6 +390,7 @@ export const useBonosStore = create<Bonos2Store>()(
         set({
           archivoExcel: archivo,
           empleados: archivo.empleados,
+          lotes: [],
           ultimaActualizacion: new Date()
         })
       },
@@ -564,6 +569,26 @@ export const useBonosStore = create<Bonos2Store>()(
 
         set({
           ahorrosEstimados: ahorros,
+          ultimaActualizacion: new Date()
+        })
+      },
+
+      // ============================================
+      // EXCEL DATA LOADING
+      // ============================================
+
+      setEmpleadosFromExcel: (empleados) => {
+        set({
+          empleados,
+          lotes: [],
+          ultimaActualizacion: new Date()
+        })
+      },
+
+      setEmpleadosIntegralFromExcel: (empleados) => {
+        set({
+          empleadosIntegral: empleados,
+          lotesIntegral: [],
           ultimaActualizacion: new Date()
         })
       },

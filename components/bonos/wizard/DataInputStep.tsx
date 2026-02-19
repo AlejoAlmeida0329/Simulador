@@ -6,6 +6,11 @@ import { DataInputMethod, MIN_SALARIO_BONOS } from '@/lib/bonos/constants'
 import type { LoteBonos2 } from '@/lib/bonos/types'
 import type { ARLRiskLevel } from '@/lib/constants/parafiscales'
 import { ARLRiskSelector } from './ARLRiskSelector'
+import { ExcelUploadSection } from './ExcelUploadSection'
+import { REGULAR_FLOW_CONFIG } from '@/lib/bonos/excel-parser'
+import type { ParsedExcelEmployee } from '@/lib/bonos/excel-parser'
+import { downloadRegularTemplate } from '@/lib/bonos/excel-template'
+import { ValidationEngine } from '@/lib/bonos/validationEngine'
 
 const formatCOP = (value: number) =>
   new Intl.NumberFormat('es-CO', {
@@ -30,6 +35,7 @@ export function DataInputStep() {
     addEmpleado,
     removeEmpleado,
     setDataLoadMethod,
+    setEmpleadosFromExcel,
     siguientePaso,
     pasoAnterior
   } = useBonosStore()
@@ -156,7 +162,27 @@ export function DataInputStep() {
   }
 
   const esExcel = metodo === DataInputMethod.EXCEL
-  const esLotes = metodo === DataInputMethod.LOTES || metodo === DataInputMethod.MIXTO
+  const esLotes = metodo === DataInputMethod.LOTES
+
+  const handleExcelConfirmed = (parsedEmployees: ParsedExcelEmployee[]) => {
+    const employees = parsedEmployees.map(pe => {
+      const emp = ValidationEngine.normalizeEmployee({
+        nombre: pe.nombre,
+        salario: pe.salario || 0,
+        cedula: pe.cedula,
+        cargo: pe.cargo,
+        origen: 'excel' as const,
+        bonos: {}
+      })
+      emp.arlRiskLevel = pe.arl
+      return emp
+    })
+    setEmpleadosFromExcel(employees)
+  }
+
+  const handleExcelClear = () => {
+    setEmpleadosFromExcel([])
+  }
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -181,7 +207,7 @@ export function DataInputStep() {
           Metodo de Carga de Datos
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Lotes */}
           <button
             onClick={() => setDataLoadMethod(DataInputMethod.LOTES)}
@@ -233,60 +259,20 @@ export function DataInputStep() {
               </p>
             </div>
           </button>
-
-          {/* Mixto */}
-          <button
-            onClick={() => setDataLoadMethod(DataInputMethod.MIXTO)}
-            className={`p-4 rounded-lg border-2 transition-all ${
-              metodo === DataInputMethod.MIXTO
-                ? 'border-tikin-red bg-red-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex flex-col items-center text-center">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-3 ${
-                metodo === DataInputMethod.MIXTO
-                  ? 'bg-tikin-red text-white'
-                  : 'bg-gray-100 text-gray-600'
-              }`}>
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                </svg>
-              </div>
-              <div className="font-semibold text-gray-900">Mixto</div>
-              <p className="text-sm text-gray-600 mt-1">
-                Combina lotes y Excel
-              </p>
-            </div>
-          </button>
         </div>
       </div>
 
       {/* ============================================================ */}
-      {/* EXCEL MODE - Proximamente */}
+      {/* EXCEL MODE */}
       {/* ============================================================ */}
       {esExcel && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Carga desde Excel
-            </h3>
-            <p className="text-gray-600 mb-4">
-              La carga masiva desde archivos Excel estara disponible proximamente.
-            </p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="text-sm text-yellow-700 font-medium">Proximamente</span>
-            </div>
-          </div>
-        </div>
+        <ExcelUploadSection
+          flowConfig={REGULAR_FLOW_CONFIG}
+          onDataConfirmed={handleExcelConfirmed}
+          onClear={handleExcelClear}
+          downloadTemplate={downloadRegularTemplate}
+          templateName="plantilla_empleados_bonos.xlsx"
+        />
       )}
 
       {/* ============================================================ */}
@@ -502,7 +488,7 @@ export function DataInputStep() {
       {/* ============================================================ */}
       {/* INDIVIDUAL EMPLOYEE MODE (for mixto or as alternative) */}
       {/* ============================================================ */}
-      {(metodo === DataInputMethod.MIXTO || metodo === DataInputMethod.LOTES) && (
+      {metodo === DataInputMethod.LOTES && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">

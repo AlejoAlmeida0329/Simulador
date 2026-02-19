@@ -5,8 +5,8 @@
 
 import {
   FEE_MERA_LIBERALIDAD_RANGES,
-  FEE_ALIMENTACION,
-  FEE_VIATICOS,
+  FEE_ALIMENTACION_RANGES,
+  FEE_VIATICOS_RANGES,
   IVA_RATE
 } from './constants'
 
@@ -41,29 +41,30 @@ export function calculateTikinCommissionBonos2(
 ): TikinCommission {
   const mlRanges = fees?.meraLiberalidadRanges || FEE_MERA_LIBERALIDAD_RANGES
   const ruRanges = fees?.reparticionUtilidades || FEE_MERA_LIBERALIDAD_RANGES
-  const feeAlimentacion = fees?.alimentacion ?? FEE_ALIMENTACION
-  const feeViaticos = fees?.viaticos ?? FEE_VIATICOS
+  const aliRanges = fees?.alimentacionRanges || FEE_ALIMENTACION_RANGES
+  const viaRanges = fees?.viaticosRanges || FEE_VIATICOS_RANGES
   const ivaRate = fees?.iva ?? IVA_RATE
 
-  // Fee variable para mera liberalidad según rango
-  const rangoML = mlRanges.find(
-    range => montoMeraLiberalidad >= range.min && montoMeraLiberalidad <= range.max
-  )
-  const porcentajeFeeML = rangoML?.fee || 0.018
+  // Helper to find fee by range
+  const findFeeInRange = (ranges: { min: number; max: number; fee: number }[], monto: number, fallback: number) => {
+    const rango = ranges.find(r => monto >= r.min && monto <= r.max)
+    return rango?.fee ?? fallback
+  }
 
+  // Fee variable para mera liberalidad según rango
+  const porcentajeFeeML = findFeeInRange(mlRanges, montoMeraLiberalidad, 0.018)
   const feeBaseMeraLiberalidad = montoMeraLiberalidad * porcentajeFeeML
 
-  // Fee fijo para alimentación
-  const feeBaseAlimentacion = montoAlimentacion * feeAlimentacion
+  // Fee variable para alimentación según rango
+  const porcentajeFeeAli = findFeeInRange(aliRanges, montoAlimentacion, 0.0125)
+  const feeBaseAlimentacion = montoAlimentacion * porcentajeFeeAli
 
-  // Fee para viáticos
-  const feeBaseViaticos = montoViaticos * feeViaticos
+  // Fee variable para viáticos según rango
+  const porcentajeFeeVia = findFeeInRange(viaRanges, montoViaticos, 0.0125)
+  const feeBaseViaticos = montoViaticos * porcentajeFeeVia
 
-  // Fee variable para repartición de utilidades (mismos rangos que ML)
-  const rangoRU = ruRanges.find(
-    range => montoReparticionUtilidades >= range.min && montoReparticionUtilidades <= range.max
-  )
-  const porcentajeFeeRU = rangoRU?.fee || 0.018
+  // Fee variable para repartición de utilidades según rango
+  const porcentajeFeeRU = findFeeInRange(ruRanges, montoReparticionUtilidades, 0.018)
   const feeBaseReparticionUtilidades = montoReparticionUtilidades * porcentajeFeeRU
 
   // Total de fees (dotación no tiene fee, es obligatoria)

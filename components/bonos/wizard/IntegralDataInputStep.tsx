@@ -5,6 +5,10 @@ import { useBonosStore } from '@/store/bonosStore'
 import { SALARIO_INTEGRAL_MINIMO } from '@/lib/bonos/constants'
 import type { ARLRiskLevel } from '@/lib/constants/parafiscales'
 import { ARLRiskSelector } from './ARLRiskSelector'
+import { ExcelUploadSection } from './ExcelUploadSection'
+import { INTEGRAL_FLOW_CONFIG } from '@/lib/bonos/excel-parser'
+import type { ParsedExcelEmployee } from '@/lib/bonos/excel-parser'
+import { downloadIntegralTemplate } from '@/lib/bonos/excel-template'
 
 const formatCOP = (value: number) =>
   new Intl.NumberFormat('es-CO', {
@@ -26,11 +30,12 @@ export function IntegralDataInputStep() {
     removeEmpleadoIntegral,
     addLoteIntegral,
     removeLoteIntegral,
+    setEmpleadosIntegralFromExcel,
     siguientePaso,
     pasoAnterior
   } = useBonosStore()
 
-  const [modo, setModo] = useState<'lotes' | 'individual'>('lotes')
+  const [modo, setModo] = useState<'lotes' | 'individual' | 'excel'>('lotes')
 
   // Lote form
   const [loteNombre, setLoteNombre] = useState('')
@@ -96,6 +101,23 @@ export function IntegralDataInputStep() {
     }
   }
 
+  const handleExcelConfirmed = (parsedEmployees: ParsedExcelEmployee[]) => {
+    const employees = parsedEmployees.map(pe => ({
+      id: crypto.randomUUID(),
+      nombre: pe.nombre || `Empleado ${pe.rowIndex}`,
+      salarioActual: pe.salarioActual || 0,
+      cedula: pe.cedula,
+      cargo: pe.cargo,
+      origen: 'excel' as const,
+      arlRiskLevel: pe.arl
+    }))
+    setEmpleadosIntegralFromExcel(employees)
+  }
+
+  const handleExcelClear = () => {
+    setEmpleadosIntegralFromExcel([])
+  }
+
   const salarioMinIntegral = SALARIO_INTEGRAL_MINIMO
 
   return (
@@ -128,23 +150,23 @@ export function IntegralDataInputStep() {
       </div>
 
       {/* Mode toggle */}
-      <div className="flex gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <button
           type="button"
           onClick={() => setModo('lotes')}
-          className={`flex-1 p-3 rounded-lg border-2 transition-all text-center ${
+          className={`p-3 rounded-lg border-2 transition-all text-center ${
             modo === 'lotes'
               ? 'border-tikin-red bg-red-50'
               : 'border-gray-200 hover:border-gray-300'
           }`}
         >
           <div className="text-sm font-semibold text-gray-900">Por Lotes</div>
-          <p className="text-xs text-gray-500 mt-0.5">Grupos de empleados con el mismo salario</p>
+          <p className="text-xs text-gray-500 mt-0.5">Grupos con el mismo salario</p>
         </button>
         <button
           type="button"
           onClick={() => setModo('individual')}
-          className={`flex-1 p-3 rounded-lg border-2 transition-all text-center ${
+          className={`p-3 rounded-lg border-2 transition-all text-center ${
             modo === 'individual'
               ? 'border-tikin-red bg-red-50'
               : 'border-gray-200 hover:border-gray-300'
@@ -153,9 +175,33 @@ export function IntegralDataInputStep() {
           <div className="text-sm font-semibold text-gray-900">Individual</div>
           <p className="text-xs text-gray-500 mt-0.5">Un empleado a la vez</p>
         </button>
+        <button
+          type="button"
+          onClick={() => setModo('excel')}
+          className={`p-3 rounded-lg border-2 transition-all text-center ${
+            modo === 'excel'
+              ? 'border-tikin-red bg-red-50'
+              : 'border-gray-200 hover:border-gray-300'
+          }`}
+        >
+          <div className="text-sm font-semibold text-gray-900">Desde Excel</div>
+          <p className="text-xs text-gray-500 mt-0.5">Carga masiva con archivo</p>
+        </button>
       </div>
 
+      {/* Excel mode */}
+      {modo === 'excel' && (
+        <ExcelUploadSection
+          flowConfig={INTEGRAL_FLOW_CONFIG}
+          onDataConfirmed={handleExcelConfirmed}
+          onClear={handleExcelClear}
+          downloadTemplate={downloadIntegralTemplate}
+          templateName="plantilla_empleados_integral.xlsx"
+        />
+      )}
+
       {/* Input form */}
+      {modo !== 'excel' && (
       <div className="bg-white rounded-xl shadow-soft border border-gray-100 p-6">
         {modo === 'lotes' ? (
           <div>
@@ -327,6 +373,7 @@ export function IntegralDataInputStep() {
           </div>
         )}
       </div>
+      )}
 
       {/* Current data summary */}
       {(lotesIntegral.length > 0 || empleadosIntegral.length > 0) && (

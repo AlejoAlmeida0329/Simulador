@@ -317,20 +317,30 @@ export const FEE_MERA_LIBERALIDAD_RANGES: FeeRange[] = [
 
 /**
  * Fee de Tikin para bonos de alimentación
- * Porcentaje fijo
+ * Rangos variables según monto dispersado
  */
-export const FEE_ALIMENTACION = 0.0125 // 1.25%
+export const FEE_ALIMENTACION = 0.0125 // 1.25% (legacy fallback)
+export const FEE_ALIMENTACION_RANGES: FeeRange[] = [
+  { min: 0, max: Infinity, fee: 0.0125, label: 'Tarifa base' }
+]
 
 /**
- * Fee de Tikin para dotación (obligatoria, sin fee)
+ * Fee de Tikin para dotación
+ * Rangos variables según monto dispersado
  */
-export const FEE_DOTACION = 0 // Dotación no tiene fee (es obligatoria)
+export const FEE_DOTACION = 0 // 0% (legacy fallback)
+export const FEE_DOTACION_RANGES: FeeRange[] = [
+  { min: 0, max: Infinity, fee: 0, label: 'Tarifa base' }
+]
 
 /**
  * Fee de Tikin para viáticos
- * Porcentaje fijo igual al de alimentación
+ * Rangos variables según monto dispersado
  */
-export const FEE_VIATICOS = 0.0125 // 1.25% (same as alimentación)
+export const FEE_VIATICOS = 0.0125 // 1.25% (legacy fallback)
+export const FEE_VIATICOS_RANGES: FeeRange[] = [
+  { min: 0, max: Infinity, fee: 0.0125, label: 'Tarifa base' }
+]
 
 /**
  * IVA aplicable sobre los fees
@@ -343,8 +353,7 @@ export const IVA_RATE = 0.19 // 19%
 
 export enum DataInputMethod {
   LOTES = 'lotes',           // Ingreso por lotes (cantidad + salario)
-  EXCEL = 'excel',           // Carga desde archivo Excel
-  MIXTO = 'mixto'            // Combinación de ambos
+  EXCEL = 'excel'            // Carga desde archivo Excel
 }
 
 // ============================================
@@ -409,10 +418,12 @@ export const VALIDATION_MESSAGES: Record<ValidationCode, string> = {
  * Nombres de columnas aceptados para mapeo de Excel
  */
 export const EXCEL_COLUMN_MAPPINGS = {
-  salario: ['salario', 'sueldo', 'salario_base', 'basico', 'salary'],
-  nombre: ['nombre', 'empleado', 'trabajador', 'name', 'fullname'],
-  cedula: ['cedula', 'cc', 'documento', 'identificacion', 'id'],
-  cargo: ['cargo', 'puesto', 'position', 'title'],
+  salario: ['salario', 'sueldo', 'salario_base', 'basico', 'salary', 'salario mensual'],
+  salarioActual: ['salario_actual', 'salario actual', 'salario', 'sueldo', 'salary'],
+  nombre: ['nombre', 'empleado', 'trabajador', 'name', 'fullname', 'nombre completo'],
+  cedula: ['cedula', 'cc', 'documento', 'identificacion', 'id', 'nro documento'],
+  cargo: ['cargo', 'puesto', 'position', 'title', 'cargo actual'],
+  arl: ['arl', 'nivel_arl', 'riesgo_arl', 'nivel arl', 'arl nivel', 'riesgo', 'nivel de riesgo'],
 
   // Bonos específicos
   bono_alimentacion: ['bono_alimentacion', 'alimentacion', 'auxilio_alimentacion'],

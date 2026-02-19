@@ -6,18 +6,18 @@
 import { getFeeConfig } from '@/lib/supabase/fee-config'
 import {
   FEE_MERA_LIBERALIDAD_RANGES,
-  FEE_ALIMENTACION,
-  FEE_DOTACION,
-  FEE_VIATICOS,
+  FEE_ALIMENTACION_RANGES,
+  FEE_DOTACION_RANGES,
+  FEE_VIATICOS_RANGES,
   IVA_RATE
 } from './constants'
 import type { FeeRange } from './constants'
 
 export interface ActiveFees {
   meraLiberalidadRanges: FeeRange[]
-  alimentacion: number
-  dotacion: number
-  viaticos: number
+  alimentacionRanges: FeeRange[]
+  dotacionRanges: FeeRange[]
+  viaticosRanges: FeeRange[]
   reparticionUtilidades: FeeRange[]
   iva: number
 }
@@ -30,9 +30,9 @@ let cacheTimestamp = 0
 function getDefaultFees(): ActiveFees {
   return {
     meraLiberalidadRanges: FEE_MERA_LIBERALIDAD_RANGES,
-    alimentacion: FEE_ALIMENTACION,
-    dotacion: FEE_DOTACION,
-    viaticos: FEE_VIATICOS,
+    alimentacionRanges: FEE_ALIMENTACION_RANGES,
+    dotacionRanges: FEE_DOTACION_RANGES,
+    viaticosRanges: FEE_VIATICOS_RANGES,
     reparticionUtilidades: FEE_MERA_LIBERALIDAD_RANGES,
     iva: IVA_RATE
   }
@@ -70,13 +70,35 @@ export async function getActiveFees(): Promise<ActiveFees> {
           }
           break
         case 'alimentacion':
-          if (record.fixed_rate !== null) fees.alimentacion = record.fixed_rate
+          if (record.ranges && record.ranges.length > 0) {
+            fees.alimentacionRanges = record.ranges.map(r => ({
+              min: r.min, max: r.max >= 999999999999 ? Infinity : r.max,
+              fee: r.fee, label: r.label
+            }))
+          } else if (record.fixed_rate !== null) {
+            // Legacy: convert fixed_rate to single range
+            fees.alimentacionRanges = [{ min: 0, max: Infinity, fee: record.fixed_rate, label: 'Tarifa base' }]
+          }
           break
         case 'dotacion':
-          if (record.fixed_rate !== null) fees.dotacion = record.fixed_rate
+          if (record.ranges && record.ranges.length > 0) {
+            fees.dotacionRanges = record.ranges.map(r => ({
+              min: r.min, max: r.max >= 999999999999 ? Infinity : r.max,
+              fee: r.fee, label: r.label
+            }))
+          } else if (record.fixed_rate !== null) {
+            fees.dotacionRanges = [{ min: 0, max: Infinity, fee: record.fixed_rate, label: 'Tarifa base' }]
+          }
           break
         case 'viaticos':
-          if (record.fixed_rate !== null) fees.viaticos = record.fixed_rate
+          if (record.ranges && record.ranges.length > 0) {
+            fees.viaticosRanges = record.ranges.map(r => ({
+              min: r.min, max: r.max >= 999999999999 ? Infinity : r.max,
+              fee: r.fee, label: r.label
+            }))
+          } else if (record.fixed_rate !== null) {
+            fees.viaticosRanges = [{ min: 0, max: Infinity, fee: record.fixed_rate, label: 'Tarifa base' }]
+          }
           break
         case 'reparticion_utilidades':
           if (record.ranges && record.ranges.length > 0) {
