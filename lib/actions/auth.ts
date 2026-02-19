@@ -85,8 +85,8 @@ export async function requestLoginLink(email: string): Promise<{
       return { success: false, error: 'Error al generar el token de acceso' }
     }
 
-    // 5. Enviar email con Gmail
-    const { sendMagicLinkEmail } = await import('@/lib/email/gmail')
+    // 5. Enviar email con Resend
+    const { sendMagicLinkEmail } = await import('@/lib/email/resend')
     const emailResult = await sendMagicLinkEmail({
       to: validEmail,
       full_name: userProfile.full_name,

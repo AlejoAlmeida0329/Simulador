@@ -7,7 +7,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/auth/server'
 import { revalidatePath } from 'next/cache'
-import { sendComercialInvitation } from '@/lib/email/gmail'
+import { sendComercialInvitation } from '@/lib/email/resend'
 import { z } from 'zod'
 import type {
   ComercialInvitation,
