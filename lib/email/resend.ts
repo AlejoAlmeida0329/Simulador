@@ -9,7 +9,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Si no tienes dominio verificado en Resend, usa 'onboarding@resend.dev'
 // Una vez verificado tikin.is en Resend, cambia a 'Tikin <noreply@tikin.is>'
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Tikin <noreply@tikin.is>'
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Tikin <noreply@update.tikin.is>'
 
 /**
  * Enviar invitación a comercial
