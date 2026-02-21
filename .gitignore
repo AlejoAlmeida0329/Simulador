@@ -34,5 +34,6 @@ next-env.d.ts
 
 # test artifacts
 *.png
+!app/icon.png
 *.pdf
 .playwright-mcp/
