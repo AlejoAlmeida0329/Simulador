@@ -155,6 +155,7 @@ export const useBonosStore = create<Bonos2Store>()(
 
       setPasoActual: (paso: number) => {
         set({ pasoActual: paso, ultimaActualizacion: new Date() })
+        if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
       },
 
       siguientePaso: () => {
@@ -162,6 +163,7 @@ export const useBonosStore = create<Bonos2Store>()(
         const maxPaso = 4 // All flows now have 5 steps (0-4)
         if (pasoActual < maxPaso) {
           set({ pasoActual: pasoActual + 1, ultimaActualizacion: new Date() })
+          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
         }
       },
 
@@ -169,6 +171,7 @@ export const useBonosStore = create<Bonos2Store>()(
         const { pasoActual } = get()
         if (pasoActual > 0) {
           set({ pasoActual: pasoActual - 1, ultimaActualizacion: new Date() })
+          if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
         }
       },
 

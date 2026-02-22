@@ -8,6 +8,7 @@
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/server'
 import { AdminSidebarNav } from '@/components/admin/AdminSidebarNav'
+import { LegalFooter } from '@/components/LegalFooter'
 
 export default async function AdminLayout({
   children,
@@ -26,6 +27,7 @@ export default async function AdminLayout({
       <div className="flex-1 flex flex-col overflow-hidden">
         <main id="main-content" className="flex-1 overflow-y-auto p-8 md:p-8 pt-16 md:pt-8">
           {children}
+          <LegalFooter />
         </main>
       </div>
     </div>
