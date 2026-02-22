@@ -246,51 +246,7 @@ export function CompanyDataStep() {
         </div>
 
         <div className="space-y-3">
-          {/* 1. Persona Jurídica Contribuyente de Renta */}
-          <label
-            className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
-              regimen === 'exonerado'
-                ? 'border-emerald-500 bg-emerald-50'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <input
-              type="radio"
-              name="regimen"
-              value="exonerado"
-              checked={regimen === 'exonerado'}
-              onChange={() => setRegimen('exonerado')}
-              className="mt-1 w-4 h-4 text-emerald-600 focus:ring-emerald-500"
-            />
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-medium text-gray-900">Persona Juridica Contribuyente de Renta</span>
-                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
-                  Mas comun
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 mt-1">
-                Empresas SAS, S.A., LTDA declarantes de renta. Exoneradas de Salud (8.5%), SENA (2%) e ICBF (3%) para empleados con IBC &lt; 10 SMMLV ($17.509.050).
-              </p>
-              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
-                <div className="bg-emerald-50 rounded px-2 py-1.5 text-center border border-emerald-100">
-                  <span className="text-emerald-700 font-medium">SENA 2%</span>
-                  <span className="block text-emerald-500 text-[10px]">Exonerado*</span>
-                </div>
-                <div className="bg-emerald-50 rounded px-2 py-1.5 text-center border border-emerald-100">
-                  <span className="text-emerald-700 font-medium">ICBF 3%</span>
-                  <span className="block text-emerald-500 text-[10px]">Exonerado*</span>
-                </div>
-                <div className="bg-gray-50 rounded px-2 py-1.5 text-center border border-gray-200">
-                  <span className="text-gray-700 font-medium">Caja 4%</span>
-                  <span className="block text-gray-400 text-[10px]">Siempre</span>
-                </div>
-              </div>
-              <p className="text-[11px] text-gray-400 mt-1.5">*Solo para IBC &lt; 10 SMMLV. Si IBC &ge; 10 SMMLV, paga 9% completo.</p>
-            </div>
-          </label>
-
-          {/* 2. Regimen General */}
+          {/* 1. Regimen General */}
           <label
             className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
               regimen === 'general'
@@ -332,6 +288,50 @@ export function CompanyDataStep() {
                 </div>
               </div>
               <p className="text-[11px] text-gray-400 mt-1.5">Paga todos los aportes parafiscales: SENA + ICBF + Caja = 9%</p>
+            </div>
+          </label>
+
+          {/* 2. Persona Jurídica Contribuyente de Renta */}
+          <label
+            className={`flex items-start gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+              regimen === 'exonerado'
+                ? 'border-emerald-500 bg-emerald-50'
+                : 'border-gray-200 hover:border-gray-300'
+            }`}
+          >
+            <input
+              type="radio"
+              name="regimen"
+              value="exonerado"
+              checked={regimen === 'exonerado'}
+              onChange={() => setRegimen('exonerado')}
+              className="mt-1 w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+            />
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-gray-900">Persona Juridica Contribuyente de Renta</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
+                  Mas comun
+                </span>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                Empresas SAS, S.A., LTDA declarantes de renta. Exoneradas de Salud (8.5%), SENA (2%) e ICBF (3%) para empleados con IBC &lt; 10 SMMLV ($17.509.050).
+              </p>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-emerald-50 rounded px-2 py-1.5 text-center border border-emerald-100">
+                  <span className="text-emerald-700 font-medium">SENA 2%</span>
+                  <span className="block text-emerald-500 text-[10px]">Exonerado*</span>
+                </div>
+                <div className="bg-emerald-50 rounded px-2 py-1.5 text-center border border-emerald-100">
+                  <span className="text-emerald-700 font-medium">ICBF 3%</span>
+                  <span className="block text-emerald-500 text-[10px]">Exonerado*</span>
+                </div>
+                <div className="bg-gray-50 rounded px-2 py-1.5 text-center border border-gray-200">
+                  <span className="text-gray-700 font-medium">Caja 4%</span>
+                  <span className="block text-gray-400 text-[10px]">Siempre</span>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1.5">*Solo para IBC &lt; 10 SMMLV. Si IBC &ge; 10 SMMLV, paga 9% completo.</p>
             </div>
           </label>
         </div>

@@ -32,7 +32,7 @@ export async function sendComercialInvitation(params: {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to,
-      subject: 'Invitación a Tikin - Simulador de Bonos',
+      subject: 'Invitación a Tikin',
       html: `
         <!DOCTYPE html>
         <html>
@@ -55,12 +55,12 @@ export async function sendComercialInvitation(params: {
               <div class="content">
                 <p>Hola <strong>${full_name}</strong>,</p>
 
-                <p>Has sido invitado a unirte al equipo de Tikin como Comercial en nuestro Simulador de Bonos Parafiscales.</p>
+                <p>Has sido invitado a unirte al equipo de Tikin como Comercial.</p>
 
                 <p>Con esta herramienta podrás:</p>
                 <ul>
                   <li>Crear cotizaciones profesionales para clientes</li>
-                  <li>Calcular ahorros en parafiscales</li>
+                  <li>Simular escenarios de costos laborales</li>
                   <li>Generar reportes y seguimiento</li>
                 </ul>
 

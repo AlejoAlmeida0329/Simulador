@@ -234,7 +234,7 @@ export default function MisCotizacionesPage() {
               <EmptyState
                 icon={FileText}
                 title="No tienes cotizaciones"
-                description="Genera tu primera cotización para empezar a ver ahorros en parafiscales"
+                description="Genera tu primera cotización para empezar a simular escenarios"
                 actionLabel="Crear Primera Cotización"
                 actionHref="/bonos"
               />

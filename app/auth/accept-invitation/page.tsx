@@ -152,7 +152,7 @@ function AcceptInvitationContent() {
             <Mail className="w-8 h-8 text-tikin-red" />
           </div>
           <h1 className="text-2xl font-bold text-tikin-dark-950 mb-2">Has sido invitado!</h1>
-          <p className="text-tikin-dark-600">Tikin Simulador de Parafiscales</p>
+          <p className="text-tikin-dark-600">Plataforma Tikin</p>
         </div>
 
         {/* Informacion de la invitacion */}
@@ -190,7 +190,7 @@ function AcceptInvitationContent() {
             <li>&#10003; Tu cuenta sera creada automaticamente</li>
             <li>&#10003; Recibiras un link de acceso por email</li>
             <li>&#10003; Podras ingresar al sistema con un solo clic</li>
-            <li>&#10003; Tendras acceso para crear cotizaciones de parafiscales</li>
+            <li>&#10003; Tendras acceso para crear cotizaciones</li>
           </ul>
         </div>
 
